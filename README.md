@@ -17,6 +17,7 @@ Features:
 
 3) Supports relations between any two data sources
 
+4) Composite primary keys
 
 
 
@@ -24,18 +25,31 @@ Maphper takes a simplistic and minimalist approach to data mapping and aims to p
 
 The main philosophy of Maphper is that the programmer should deal with sets of data and then be able to manipulate the set and extract other data from it.
 
-```php
-$pdo = new PDO('mysql:dbname=maphpertest;host=127.0.0.1', 'username', 'password');
-$blogSource = new \Maphper\DataSource\Database($pdo, 'blog', 'id');
-$blogs = new \Maphper\Maphper($blogSource);
-```
-
 
 This sets up a Data Mapper that maps to the 'blog' table in a MySQL database. Each mapper has a data source. This source could be anything, a database table, an XML file, a folder full fo XML files, a CSV, a Twitter feed, a web service, or anything.
 
 The aim is to give the developer a consistent and simple API which is shared between any of the data sources. 
 
 It's then possible to treat the $blogs object like an array.
+
+
+To set up a Maphper object using a Database Table as its Data Source, first create a standard PDO instance:
+
+```php
+$pdo = new PDO('mysql:dbname=maphpertest;host=127.0.0.1', 'username', 'password');
+```
+
+Then create an instance of \Maphper\DataSource\DataBase passing it the PDO instance, name of the table and primary key:
+
+```php
+$blogSource = new \Maphper\DataSource\Database($pdo, 'blog', 'id');
+```
+
+Finally create an instance of \Maphper\Maphper and pass it the data source:
+
+```php
+$blogs = new \Maphper\Maphper($blogSource);
+```
 
 You can loop through all the blogs using:
 
@@ -53,10 +67,41 @@ Alternatively you can find a specific blog using the ID
 echo $blog[142]->title;
 ```
 
+
 Which will find a blog with the id of 142 and display the title.
 
 
-The mapper data set can be manipulated with a few methods. For instance, if you only wanted blogs posted on a specific date you could use:
+Filters
+-------
+
+Maphper supports filtering the data:
+
+```php
+//find blogs that were posted on a specific date
+$filteredBlogs = $blogs->filer(['date' => '2014-04-09']);
+
+//this will only retrieve blogs that were matched by the filter
+foreach ($filteredBlogs as $blog) {
+	echo $blog->title;
+}
+````
+
+Filters can be extended and chained together:
+
+
+
+```php
+//find blogs that were posted on a specific date by a specific author
+$filteredBlogs = $blogs->filer(['date' => '2014-04-09'])->filter(['authorId' => 7]);
+
+//this will only retrieve blogs that were matched by both filters
+foreach ($filteredBlogs as $blog) {
+	echo $blog->title;
+}
+````
+
+
+As well as filtering there are both sort() and limit() methods which can all be chained:
 
 ```php
 foreach ($blogs->filter(['date' => '2014-04-09']) as $blog) {
@@ -79,7 +124,7 @@ Like any array, you can count the total number of blogs using:
 echo 'Total number of blogs is ' . count($blogs);
 ```
 
-This will count the total number of blogs in the table. To count the blogs with a specific categoryId:
+This will count the total number of blogs in the table. You can also count filtered results:
 
 ```php
 //Count the number of blogs in category 3
@@ -160,3 +205,28 @@ foreach ($authors[4]->blogs as $blog) {
     echo $blog->title . '<br />';
 }
 ```
+
+
+Composite Primary Keys
+----------------------
+
+Maphper also supports composite primary keys. For example if you had a table of products you could use the manufacturer id and manufacturer part number as primary keys (Two manufacuterers may use the same part number!)
+
+To do this, define the data source with an array for the primary key:
+
+```php
+$pdo = new PDO('mysql:dbname=maphpertest;host=127.0.0.1', 'username', 'password');
+$productSource = new \Maphper\DataSource\Database($pdo, 'products', ['manufacturerId', 'partNumber]);
+$products = new \Maphper\Maphper($productSource);
+```
+
+Once you have defined the source to use multiple keys, you can treat the $products variable like a two dimensional array:
+
+```php
+//Get the product with manufacturerId 7 and partNumber AC294
+echo $products[7]['AC294']->name;
+```
+
+
+
+
