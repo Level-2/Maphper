@@ -3,9 +3,6 @@ namespace Maphper\DataSource;
 class Database implements \Maphper\DataSource {
 	private $db;
 	private $table;
-	private $iterator = 0;
-	private $iteratorResultSet;
-	private $iteratorMaxRecords = 1000;
 	private $cache = [];
 	private $primaryKey;
 	private $resultClass = 'stdClass';
@@ -18,6 +15,7 @@ class Database implements \Maphper\DataSource {
 	private $alterDb = false;
 	
 	public function __construct(\PDO $pdo, $table, $primaryKey = 'id', array $options = []) {
+		//Action at a distance... but this is needed to easily detect errors.
 		$pdo->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
 		$this->db = $pdo;
 		$this->table = $this->tick($table);
@@ -32,7 +30,6 @@ class Database implements \Maphper\DataSource {
 
 		$this->defaultSort = (isset($options['defaultSort'])) ? $options['defaultSort'] : implode(', ', $this->primaryKey);
 		
-		if (isset($options['iteratorMaxRecords'])) $this->iteratorMaxRecords = $options['iteratorMaxRecords'];		
 		if (isset($options['newCallback'])) $this->newCallback = $options['newCallback'];		
 		if (isset($options['editmode'])) $this->alterDb = $options['editmode'];		
 	}
@@ -47,7 +44,7 @@ class Database implements \Maphper\DataSource {
 	
 	public function createNew() {
 		$cb = $this->newCallback;
-		return ($this->resultClass != 'stdClass' && is_callable($this->newCallback)) ? $cb($this->resultClass) : new $this->resultClass;
+		return (is_callable($cb)) ? $cb($this->resultClass) : new $this->resultClass;
 	}
 	
 	public function deleteById($id) {
@@ -73,20 +70,21 @@ class Database implements \Maphper\DataSource {
 		}
 
 		try {
+			foreach ($args as &$arg) if ($arg instanceof \DateTime) $arg = $arg->format('Y-m-d H:i:s');
 			if (count($args) > 0) $res = $stmt->execute($args);
 			else $res = $stmt->execute();
 			if (strpos($query, 'INSERT') === 0) return $res;
-			//To allow object constructor args to be delegated via newCallbakc, this slightly inneficent loading needs to happen
+			//To allow object constructor args to be delegated via newCallback, this slightly inneficent loading needs to happen
 			//Cannot use FETCH_CLASS as the constructor arguments cannot be provided here
 			$result = $stmt->fetchAll(\PDO::FETCH_CLASS, 'stdClass');
 			if ($this->resultClass == 'stdClass' || $overrideClass == 'stdClass') {
-				$this->resultCache[$cacheId] = $result;
+				$this->resultCache[$cacheId] = $this->processDates($result);
 				return $result;
 			}
 			$newResult = [];
 			foreach ($result as $obj) {
 				$new = $this->createNew();
-				foreach ($obj as $key => $value) $new->$key = $value;
+				foreach ($obj as $key => $value) $new->$key = $this->processDates($value);
 				$this->cache[$obj->{$this->primaryKey[0]}] = $obj;
 				$newResult[] = $new;
 			}
@@ -101,21 +99,30 @@ class Database implements \Maphper\DataSource {
 		}		
 	}
 
+	private function processDates($obj) {
+		if (is_array($obj) || is_object($obj)) foreach ($obj as &$o) $this->processDates($o);		
+		if (is_string($obj) && is_numeric($obj[0]) && strlen($obj) <= 20) {
+			try {
+				$date = new \DateTime($obj);
+				if ($date->format('Y-m-d H:i:s') == substr($obj, 0, 20)) $obj = $date;
+			}
+			catch (\Exception $e) {}
+		}
+		return $obj;
+	}
+	
 	public function getErrors() {
 		return $this->errors;
 	}
-	
+
 	public function findById($id) {
-		if (count($this->primaryKey) > 1) {
-			
-		}
-		else if (!isset($this->cache[$id])) {
+		if (!isset($this->cache[$id])) {
 			$result = $this->query('SELECT ' . $this->fields . ' FROM ' . $this->table . ' WHERE ' . $this->getPrimaryKey()[0] . ' = :id', [':id' => $id]);
 			if (isset($result[0])) {
 				$obj = $result[0];
 				$this->cache[$id] = $obj;
 			}
-			else return false;
+			else return null;
 		}
 		return $this->cache[$id];
 	}
@@ -124,10 +131,11 @@ class Database implements \Maphper\DataSource {
 		$args = [];
 		$sql = [];	
 		
-		foreach ($fields as $key => $value) {		
+		foreach ($fields as $key => $value) {
+
 			if (is_numeric($key) && is_array($value)) {
 				$result = $this->buildFindQuery($value, $key);
-				foreach ($result['args'] as $key => $arg) $args[$key] = $arg;
+				foreach ($result['args'] as $arg_key => $arg) $args[$arg_key] = $arg;
 				foreach ($result['sql'] as $arg) $sql[] = $arg;
 				continue;
 			}
@@ -145,7 +153,7 @@ class Database implements \Maphper\DataSource {
 					$args[$key . $i] = $value[$i];
 					$inSql[] = ':' . $key . $i;
 				}
-				if (count($inSql) == 0) $sql[] = ' 1=2';
+				if (count($inSql) == 0) return [];
 				else $sql[] = $this->tick($key) . ' IN ( ' .  implode(', ', $inSql) . ')';
 				continue;
 			}			
@@ -269,7 +277,8 @@ class Database implements \Maphper\DataSource {
 	}
 	
 	private function getType($val) {
-		if (is_int($val)) return  'INT(11)';
+		if ($val instanceof \DateTime) return 'DATETIME';
+		else if (is_int($val)) return  'INT(11)';
 		else if (is_double($val)) return 'DECIMAL(9,' . strlen($val) - strrpos($val, '.') - 1 . ')';
 		else if (is_string($val) && strlen($val) < 256) return 'VARCHAR(255)';
 		else if (is_string($val) && strlen($val) > 256) return 'LONGBLOG';
@@ -293,7 +302,7 @@ class Database implements \Maphper\DataSource {
 			$this->db->query('CREATE TABLE IF NOT EXISTS ' . $this->table . ' (' . $pkField . ')');
 			
 			foreach ($data as $key => $value) {
-				if (is_array($value) || is_object($value)) continue;
+				if (is_array($value) || (is_object($value) && !($value instanceof \DateTime))) continue;
 				if (in_array($key, $this->primaryKey)) continue;
 
 				$type = $this->getType($value);
@@ -313,6 +322,12 @@ class Database implements \Maphper\DataSource {
 		$sql = [];
 		$args = [];
 		foreach ($data as $field => $value) {
+			//For dates with times set, search on time, if the time is not set, search on date only.
+			//E.g. searching for all records posted on '2015-11-14' should return all records that day, not just the ones posted at 00:00:00 on that day
+			if ($value instanceof \DateTime) {
+				if ($value->format('H:i:s')  == '00:00:00') $value = $value->format('Y-m-d');
+				else $value = $value->format('Y-m-d H:i:s');
+			}
 			if (is_object($value)) continue;
 			if ($value === null) $tmp[] = '`' . $field . '` = NULL';
 			else {

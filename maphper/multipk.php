@@ -2,7 +2,6 @@
 namespace Maphper;
 class MultiPk implements \ArrayAccess {
 	private $parent;
-	private $maphper;
 	private $primaryKey;
 	private $lookup;
 	

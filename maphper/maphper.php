@@ -17,17 +17,17 @@ class Maphper implements \Countable, \ArrayAccess, \Iterator {
 	
 	private $dataSource;
 	private $relations = [];	
-	public $settings = ['filter' => [], 'sort' => null, 'limit' => null, 'offset' => null];	
+	private $settings = ['filter' => [], 'sort' => null, 'limit' => null, 'offset' => null];	
 	private $array = [];
 	private $iterator = 0;
 
-	public function __construct(\Maphper\DataSource $dataSource, array $settings = null, array $relations = []) {
+	public function __construct(DataSource $dataSource, array $settings = null, array $relations = []) {
 		$this->dataSource = $dataSource;
 		if ($settings) $this->settings = $settings;
 		if ($relations) $this->relations = $relations;
 	}
 
-	public function addRelation($name, \Maphper\Relation $relation) {
+	public function addRelation($name, Relation $relation) {
 		$this->relations[$name] = $relation;
 	}
 
@@ -63,10 +63,25 @@ class Maphper implements \Countable, \ArrayAccess, \Iterator {
 	}
 	
 	public function offsetSet($offset, $value) {
+		foreach ($this->relations as $name => $relation) {
+			//If a new object has been overridden
+			if (!($value->$name instanceof Relation\One) && !($value->$name instanceof Maphper)) {
+				//Save the updated instance
+				$relation->mapper[] = $value->$name;
+				//And write the PK back into the parent object
+				$value->{$relation->field} = $value->{$name}->{$relation->parentField};
+			}
+		}
+
+		foreach ($this->settings['filter'] as $key => $filterValue) {
+			//When saving to a mapper with filters, write the filters back into the object being stored
+			if (empty($value->$key) && !is_array($filterValue)) $value->$key = $filterValue;
+		}
+		
+		$this->attachRelations($value);
 		$pk = $this->dataSource->getPrimaryKey();
 		if ($offset !== null) $value->{$pk[0]} = $offset;
-		$this->dataSource->save($value);
-		$this->attachRelations($value);
+		$this->dataSource->save($value);		
 	}
 	
 	public function offsetExists($offset) {
@@ -96,12 +111,11 @@ class Maphper implements \Countable, \ArrayAccess, \Iterator {
 			return $object;
 		}
 		else {				
-			if (isset($object->__maphperRelationsAttached)) return $object;
-			
+			if (isset($object->__maphperRelationsAttached)) return $object;			
 			foreach ($this->relations as $name => $relation) {
 				if (!isset($object->{$relation->field})) $object->{$relation->field} = null;
-				if ($relation->relationType == \Maphper\Relation::ONE) $object->$name = new \Maphper\Relation\One($relation, $object->{$relation->field});
-				else if ($relation->relationType == \Maphper\Relation::MANY) {	
+				if ($relation->relationType == Relation::ONE) $object->$name = new Relation\One($relation, $object->{$relation->field});
+				else if ($relation->relationType == Relation::MANY) {	
 					$object->$name = $relation->mapper->filter([$relation->parentField => $object->{$relation->field}]);
 				}
 			}				
