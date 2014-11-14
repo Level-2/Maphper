@@ -12,8 +12,8 @@ class One {
 
 	private function getData() {
 		if (empty($this->data)) {
-			$results = $this->relation->mapper->find([$this->relation->parentField => $this->parentField]);
-			$this->data = $results[0];
+			$results = $this->relation->mapper->filter([$this->relation->parentField => $this->parentField]);
+			$this->data = $results->item(0);
 		}
 		return $this->data;
 	}

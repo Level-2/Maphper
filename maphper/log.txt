@@ -1,7 +1,0 @@
-...............saving....
-
-......
-
-Time: 3 seconds, Memory: 3.25Mb
-
-OK (21 tests, 92 assertions)
