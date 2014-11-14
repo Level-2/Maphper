@@ -1,6 +1,6 @@
 <?php 
 /*
- * Integration tests. Tests Maphper working with a Databas DataSource
+ * Integration tests. Tests Maphper working with a Database DataSource
  */
 class DatabaseTest extends PHPUnit_Framework_TestCase {
 
@@ -9,8 +9,11 @@ class DatabaseTest extends PHPUnit_Framework_TestCase {
 	
 	public function __construct() {
 		parent::__construct();
-		$this->pdo = new PDO('mysql:dbname=maphpertest;host=127.0.0.1', 'user', 'password');
+		$this->pdo = new PDO('mysql:dbname=maphpertest;host=127.0.0.1', 'root', 'mynameistom');
 		$this->pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+		
+		//prevent any Date errors
+		date_default_timezone_set('Europe/London');
 	}
 	
 	protected function setUp() {
@@ -80,16 +83,22 @@ class DatabaseTest extends PHPUnit_Framework_TestCase {
 
 	private function populateBlogs() {
 		$this->dropTable('blog');
+		
+		
+		
 		$mapper = new \Maphper\Maphper($this->getDataSource('blog', 'id', ['editmode' => true]));
 		for ($i = 1; $i <= 20; $i++) {
 			$blog = new stdClass;
 			$blog->title = 'blog number ' . $i;
 			$blog->rating = 5;
+			
+			$blog->date = new \DateTime('2015-01-0' . ($i % 5 + 1));
 			$mapper[] = $blog; 
 		}
 		$this->assertEquals(20, count($mapper));
 	}
 	
+
 	public function testFindById() {
 		$this->populateBlogs();
 		$mapper = new \Maphper\Maphper($this->getDataSource('blog'));
@@ -318,6 +327,190 @@ class DatabaseTest extends PHPUnit_Framework_TestCase {
 		
 	}
 	
+	
+	public function testDateColumnCreate() {
+		$this->dropTable('blog');
+		$mapper = new \Maphper\Maphper($this->getDataSource('blog', 'id', ['editmode' => true]));
+		
+		$blog = new Blog;
+		$blog->title = 'ABC123';
+		$blog->date = new \DateTime;
+		
+		$mapper[] = $blog;
+		
+		$result = $this->pdo->query('SHOW COLUMNS FROM blog WHERE field = "date"')->fetch();
+		$this->assertEquals('datetime', strtolower($result['Type']));		
+	}
+	
+	
+	public function testDateColumnSave() {
+		$this->dropTable('blog');
+		$mapper = new \Maphper\Maphper($this->getDataSource('blog', 'id', ['editmode' => true]));
+	
+		$blog = new Blog;
+		$blog->title = 'ABC123';
+		$blog->date = new \DateTime;
+		$blog->id = 2;
+		$mapper[] = $blog;
+	
+		$result = $this->pdo->query('SELECT `date` FROM blog WHERE id = 2')->fetch();
+		$this->assertEquals($result['date'], $blog->date->format('Y-m-d H:i:s'));
+	}
+	
+	public function testDateColumnRead() {
+		$this->dropTable('blog');
+		$mapper = new \Maphper\Maphper($this->getDataSource('blog', 'id', ['editmode' => true]));
+		
+		$blog = new Blog;
+		$blog->title = 'ABC123';
+		$blog->date = new \DateTime;
+		$blog->id = 7;
+		$mapper[] = $blog;
+		
+		//Create a new mapper instance to avoid any caching
+		$mapper = new \Maphper\Maphper($this->getDataSource('blog', 'id', ['editmode' => true]));
+		
+		$blog7 = $mapper[7];
+		
+		$this->assertInstanceOf('\DateTime', $blog7->date);		
+		$this->assertEquals($blog->date->format('Y-m-d'), $blog7->date->format('Y-m-d'));
+	
+	}
+	
+	
+	public function testDateColumnFilter() {
+		$this->dropTable('blog');
+		$this->populateBlogs();
+		$blogs = new \Maphper\Maphper($this->getDataSource('blog'));
+		
+		$b = $blogs->filter(['date' => new \DateTime('2015-01-02')]);
+		
+		$this->assertEquals(count($b), 4);
+		
+		
+	}
+	
+	
+	private function populateBlogsAuthors() {
+		$this->dropTable('blog');
+		$this->dropTable('author');
+		
+		
+		$blogs = new \Maphper\Maphper($this->getDataSource('blog', 'id', ['editmode' => true]));
+		$authors = new \Maphper\Maphper($this->getDataSource('author', 'id', ['editmode' => true]));
+		
+		$authorList = [];
+		$authorList[0] = new stdClass;
+		$authorList[0]->id = 1;
+		$authorList[0]->name  = 'Author 1';
+		
+		$authorList[1] = new stdClass;
+		$authorList[1]->id = 2;
+		$authorList[1]->name  = 'Author 2';
+		
+		for ($i = 0; $i < 20; $i++) {
+			$blog = new stdclass;
+			$blog->title = 'Blog number ' . $i;
+			$blog->authorId = $authorList[($i % 2)]->id;
+			$blogs[] = $blog;
+		}
+		
+		
+		foreach ($authorList as $author) {
+			$authors[] = $author;
+		}
+		
+	}
+	
+	public function testFetchRelationOne() {
+		
+		$this->populateBlogsAuthors();
+
+		$blogs = new \Maphper\Maphper($this->getDataSource('blog'));
+		$authors = new \Maphper\Maphper($this->getDataSource('author'));
+
+		$relation = new \Maphper\Relation(\Maphper\Relation::ONE, $authors, 'authorId', 'id');
+		$blogs->addRelation('author', $relation);
+		
+		
+		$blog2 = $blogs[2];
+
+		$this->assertNotEquals($blog2->author, null);		
+		$this->assertEquals($blog2->authorId, $blog2->author->id);
+		$this->assertEquals('Author 2', $blog2->author->name);
+	}
+	
+	
+	public function testFetchRelationMany() {
+		$this->populateBlogsAuthors();
+		
+		$blogs = new \Maphper\Maphper($this->getDataSource('blog'));
+		$authors = new \Maphper\Maphper($this->getDataSource('author'));
+		
+		$authors->addRelation('blogs', new \Maphper\Relation(\Maphper\Relation::MANY, $blogs, 'id', 'authorId'));
+		$author2 = $authors[2];
+		
+		//There were 20 blogs spread equally between 2 authors so this author should have 10 blogs
+		$this->assertEquals(count($author2->blogs), 10);	
+		$this->assertNotEquals(null, $author2->blogs->item(0)->title);		
+	}
+	
+	
+	public function testStoreRelatedObjectOne() {
+		$this->populateBlogsAuthors();
+		
+		$blogs = new \Maphper\Maphper($this->getDataSource('blog'));
+		$authors = new \Maphper\Maphper($this->getDataSource('author'));		
+		$blogs->addRelation('author', new \Maphper\Relation(\Maphper\Relation::ONE, $authors, 'authorId', 'id'));
+		
+		
+		$blog2 = $blogs[2];
+		
+		$this->assertEquals('Author 2', $blog2->author->name);
+		
+		$author3 = new stdclass;
+		$author3->id = 3;
+		$author3->name = 'Author 3';
+		
+		$blog2->author = $author3;
+		
+		//Save the blog with the new author
+		$blogs[] = $blog2;
+		
+		
+		//Get a new instance of the mapper to avoid any caching
+		$blogs = new \Maphper\Maphper($this->getDataSource('blog'));
+		$blogs->addRelation('author', new \Maphper\Relation(\Maphper\Relation::ONE, $authors, 'authorId', 'id'));
+		
+		
+		$this->assertEquals('Author 3', $blogs[2]->author->name);
+		$this->assertEquals(3, $blogs[2]->author->id);		
+	}
+	
+	
+	public function testStoreRelatedObjectMany() {
+		$this->populateBlogsAuthors();
+		$blogs = new \Maphper\Maphper($this->getDataSource('blog'));
+		$authors = new \Maphper\Maphper($this->getDataSource('author'));
+		$authors->addRelation('blogs', new \Maphper\Relation(\Maphper\Relation::MANY, $blogs, 'id', 'authorId'));
+		
+		$author = $authors[2];
+		
+		$count = count($author->blogs);
+		
+		$blog = new stdclass;
+		$blog->title = 'Added blog';
+		
+		$author->blogs[] = $blog;
+		
+		$this->assertEquals($count+1, count($author->blogs));
+		
+		//check the blog has been added to the table
+		$this->assertEquals(1, count($blogs->filter(['title' => 'Added blog'])));
+		
+		//Check the added blog is associated with the author
+		$this->assertEquals($author->id, $blogs->filter(['title' => 'Added blog'])->item(0)->authorId);
+	}
 }
 
 class Blog {
