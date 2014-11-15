@@ -9,7 +9,7 @@ class DatabaseTest extends PHPUnit_Framework_TestCase {
 	
 	public function __construct() {
 		parent::__construct();
-		$this->pdo = new PDO('mysql:dbname=maphpertest;host=127.0.0.1', 'root', 'mynameistom');
+		$this->pdo = new PDO('mysql:dbname=maphpertest;host=127.0.0.1', 'u', 'p');
 		$this->pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 		
 		//prevent any Date errors
@@ -495,6 +495,7 @@ class DatabaseTest extends PHPUnit_Framework_TestCase {
 		$authors->addRelation('blogs', new \Maphper\Relation(\Maphper\Relation::MANY, $blogs, 'id', 'authorId'));
 		
 		$author = $authors[2];
+		
 		
 		$count = count($author->blogs);
 		
