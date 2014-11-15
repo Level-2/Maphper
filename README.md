@@ -66,7 +66,7 @@ Any fields from the database table (or xml file, web service, etc) will be avail
 Alternatively you can find a specific blog using the ID
 
 ```php
-echo $blog[142]->title;
+echo $blogs[142]->title;
 ```
 
 
