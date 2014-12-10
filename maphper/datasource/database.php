@@ -45,7 +45,7 @@ class Database implements \Maphper\DataSource {
 	public function deleteById($id) {
 		$this->query('DELETE FROM `' . $this->table . '` WHERE ' . $this->primaryKey[0] . ' = :id', ['id' => $id]);
 		unset($this->cache[$id]);
-	}	
+	}
 	
 	private function query($query, $args, $overrideClass = null) {
 		$cacheId = md5(serialize(func_get_args()));
@@ -73,7 +73,7 @@ class Database implements \Maphper\DataSource {
 			if (strpos($query, 'INSERT') === 0) return $res;
 			
 			//To allow object constructor args to be delegated via a callback, this slightly inneficent loading needs to happen
-			//Cannot use FETCH_CLASS as the constructor arguments may need to be provided by a factory
+			//Cannot use PDO::FETCH_CLASS as the constructor arguments may need to be provided by a factory
 			//Load the properties into a stdClass, construct the correct object type via factory call then set the properties on the new object
 			$result = $stmt->fetchAll(\PDO::FETCH_CLASS, 'stdClass');
 			if ($this->resultClass == 'stdClass' || $overrideClass == 'stdClass') {
@@ -81,14 +81,15 @@ class Database implements \Maphper\DataSource {
 				return $result;
 			}
 			$newResult = [];
-			//This allows writing to public properties in result classes
+			
+			//This allows writing to private properties in result classes
 			$writeClosure = function($field, $value) {
 				$this->$field = $value;
-			};
+			};			
 			
 			foreach ($result as $obj) {
 				$new = $this->createNew();
-				$write = $writeClosure->bindTo($new);
+				$write = $writeClosure->bindTo($new, $new);
 				foreach ($obj as $key => $value) $write($key, $this->processDates($value));
 				$this->cache[$obj->{$this->primaryKey[0]}] = $obj;
 				$newResult[] = $new;
@@ -253,15 +254,28 @@ class Database implements \Maphper\DataSource {
 	}
 	
 	public function save($data) {
-		$pk = $this->primaryKey;
+		$pk = $this->primaryKey;	
 
 		$new = false;
 		foreach ($pk as $k) {
 			if (!isset($data->$k) || $data->$k == '') $data->$k = null;
 		}
-	
-		$query = $this->_buildSaveQuery($data);
-		$query1 = $this->_buildSaveQuery($data, '1');
+		
+		
+		//Extract private properties from the object
+		$readClosure = function() {
+			$data = new \stdClass;
+			foreach ($this as $k => $v)	$data->$k = $v;
+			return $data;
+		};
+		$read = $readClosure->bindTo($data, $data);
+		$writeData = $read();			
+		
+		//print_r($data);
+		//$writeData = $data;
+		
+		$query = $this->_buildSaveQuery($writeData);
+		$query1 = $this->_buildSaveQuery($writeData, '1');
 	
 		$result = $this->query('INSERT INTO ' . $this->table . ' SET ' . implode(',', $query['sql']) . ' ON DUPLICATE KEY UPDATE ' . implode(',', $query1['sql']), array_merge($query['args'], $query1['args']));
 			
@@ -269,10 +283,10 @@ class Database implements \Maphper\DataSource {
 		if ($this->alterDb) {
 			$warnings = $this->db->query('SHOW WARNINGS');
 			$pk = $this->primaryKey[0];
-			if ($result) $data->$pk = $result; 
-			if (count($warnings->fetchAll()) > 0) $this->alterDatabase($data);			
+			if ($result) $writeData->pk = $data->$pk = $result; 
+			if (count($warnings->fetchAll()) > 0) $this->alterDatabase($writeData);			
 		}
-			
+		//TODO: This will error if the primary key is a private field	
 		if ($new && count($this->primaryKey) == 1) $data->{$this->primaryKey} = $this->db->lastInsertId();
 		//Something has changed, clear any cached results as they may now be incorrect
 		$this->resultCache = [];

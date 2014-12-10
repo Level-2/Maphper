@@ -11,6 +11,9 @@ class DatabaseTest extends PHPUnit_Framework_TestCase {
 		parent::__construct();
 		$this->pdo = new PDO('mysql:dbname=maphpertest;host=127.0.0.1', 'u', 'p');
 		$this->pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+		
+		//prevent any Date errors
+		date_default_timezone_set('Europe/London');
 	}
 	
 	protected function setUp() {
@@ -194,6 +197,39 @@ class DatabaseTest extends PHPUnit_Framework_TestCase {
 		}
 	}
 	
+	/*
+	 * Checks to see if maphper can successfuly write to private properties (It should!)
+	 */
+	public function testResultClassPrivateProperties() {
+		$this->populateBlogs();
+		$blogs = new \Maphper\Maphper($this->getDataSource('blog', 'id', ['resultClass' => 'BlogPrivate']));
+	
+		$blog = $blogs[2];
+		$this->assertInstanceOf('BlogPrivate', $blog);
+		$this->assertEquals('blog number 2', $blog->getTitle());
+	}
+	
+	public function testResultClassPrivatePropertiesWrite() {
+		$this->populateBlogs();
+		$blogs = new \Maphper\Maphper($this->getDataSource('blog', 'id', ['resultClass' => 'BlogPrivate']));
+	
+		$blog = $blogs[2];
+		
+		$blog->setTitle('Title Updated');
+		
+		$blogs[] = $blog;
+		
+		//Reload the mapper to ensure no cacheing is used
+		unset($blogs);
+		unset($blog);
+		$blogs = new \Maphper\Maphper($this->getDataSource('blog', 'id', ['resultClass' => 'BlogPrivate']));
+		
+		$blog = $blogs[2];
+		
+		$this->assertEquals('Title Updated', $blog->getTitle());
+	}
+	
+	
 	public function testLoopKey() {
 		$this->populateBlogs();
 		$blogs = new \Maphper\Maphper($this->getDataSource('blog', 'id', ['resultClass' => 'blog']));
@@ -209,7 +245,6 @@ class DatabaseTest extends PHPUnit_Framework_TestCase {
 		$blog = $blogs[3];
 		$blog->rating = 'VVV';
 		
-		echo 'saving....' . "\n\n";
 		$blogs[] = $blog;
 		
 	}
@@ -537,6 +572,18 @@ class DatabaseTest extends PHPUnit_Framework_TestCase {
 
 class Blog {
 	
+	
 }
 
+class BlogPrivate {
+	private $title;
+	
+	public function getTitle() {
+		return $this->title;
+	}
+	
+	public function setTitle($title) {
+		$this->title = $title;
+	}
+}
 

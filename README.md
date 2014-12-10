@@ -398,9 +398,8 @@ For example, if you had a product class:
 
 ```php
 class Product {
-	public $name;
-	public $price;
-	
+	private $name;
+	private $price;
 	
 	const TAX_RATE = 0.2;
 	
@@ -431,11 +430,67 @@ $tax = $product->getTax();
 $total = $product->getTotalPrice();
 ```
 
+Private properties are both saved and loaded as any normal properties.
 
+### Factory creation for new objects
 
+Sometimes your result class may have dependencies. In this case, you can specify a method rather than a class name to act as a factory. Consider the following:
 
+```php
 
+class TaxCalculator {
+	const TAX_RATE = 0.2;
+	
+	public function getTax($price) {
+		return $price * self::TAX_RATE;
+	}
+}
+```
 
+class Product {
+	private $name;
+	private $price;
+	private $taxCalculator;
+	
+	
+	public function __construct(TaxCalculator $taxCalculator) {
+		$this->taxCalculator = $taxCalculator;
+	}	
+	
+	public function getTax() {
+		return $this->taxCalculator->getTax($this->price);
+	}
+	
+	public function getTotalPrice() {
+		return $this->price + $this->getTax();
+	}
+}
+```
  
- 
+In this case using:
+
+```php
+$dataSource = new \Maphper\DataSource\Database($pdo, 'product', 'id', ['resultClass' => 'Product']);
+```
+
+Will error, because when an instance of Product is constructed, Maphper isn't smart enough to guess that a TaxCalculator instance is required as a constructor argument. Instead, you can pass a closure that returns a fully constructed object:
+
+
+```php
+$taxCalculator = new TaxCalculator;
+
+$dataSource = new \Maphper\DataSource\Database($pdo, 'product', 'id', ['resultClass' => function() use ($taxCalculator) {
+	return new Product($taxCalculator);
+}]);
+```
+
+Alternatively if you want considerably more control over the dependencies you can use a Dependency Injection Container such as [Dice](https://r.je/dice.html):
+
+```php
+$dice = new \Dice\Dice;
+
+$dataSource = new \Maphper\DataSource\Database($pdo, 'product', 'id', ['resultClass' => function() use ($dice) {
+	return $dice->create('Product');
+}]);
+````
 
