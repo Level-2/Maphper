@@ -445,7 +445,6 @@ class TaxCalculator {
 		return $price * self::TAX_RATE;
 	}
 }
-```
 
 class Product {
 	private $name;
