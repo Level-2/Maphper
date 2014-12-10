@@ -80,7 +80,7 @@ Maphper supports filtering the data:
 
 ```php
 //find blogs that were posted on a specific date
-$filteredBlogs = $blogs->filer(['date' => '2014-04-09']);
+$filteredBlogs = $blogs->filter(['date' => '2014-04-09']);
 
 //this will only retrieve blogs that were matched by the filter
 foreach ($filteredBlogs as $blog) {
