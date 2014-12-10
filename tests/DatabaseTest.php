@@ -2,7 +2,7 @@
 /*
  * Integration tests. Tests Maphper working with a Database DataSource
  */
-class DatabaseTests extends PHPUnit_Framework_TestCase {
+class DatabaseTest extends PHPUnit_Framework_TestCase {
 
 	private $maphper;
 	private $pdo;
@@ -11,11 +11,7 @@ class DatabaseTests extends PHPUnit_Framework_TestCase {
 		parent::__construct();
 		$this->pdo = new PDO('mysql:dbname=maphpertest;host=127.0.0.1', 'u', 'p');
 		$this->pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-		
-		//prevent any Date errors
-		date_default_timezone_set('Europe/London');
 	}
-	
 	
 	protected function setUp() {
 		parent::setUp ();
@@ -512,8 +508,35 @@ class DatabaseTests extends PHPUnit_Framework_TestCase {
 		//Check the added blog is associated with the author
 		$this->assertEquals($author->id, $blogs->filter(['title' => 'Added blog'])->item(0)->authorId);
 	}
+	
+	
+	public function testStoreRelatedObjectOneNew() {
+		$this->dropTable('blog');
+		$this->dropTable('author');
+		
+		$blogs = new \Maphper\Maphper($this->getDataSource('blog', 'id', ['editmode' => true]));
+		$authors = new \Maphper\Maphper($this->getDataSource('author', 'id', ['editmode' => true]));
+		
+		$blogs->addRelation('author', new \Maphper\Relation(\Maphper\Relation::ONE, $authors, 'authorId', 'id'));
+		
+		
+		$blog = new stdClass;
+		$blog->title = 'My First Blog';
+		$blog->date = new \DateTime();
+		$blog->author = new stdClass;
+		$blog->author->name = 'Tom Butler';
+		
+		$blogs[] = $blog;
+		
+		$this->assertEquals(1, count($blogs));
+		$this->assertEquals(1, count($authors));
+	}
+
+
 }
 
 class Blog {
 	
 }
+
+

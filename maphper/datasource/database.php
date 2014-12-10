@@ -10,7 +10,6 @@ class Database implements \Maphper\DataSource {
 	private $defaultSort;
 	private $queryCache = [];
 	private $resultCache = [];
-	private $newCallback;
 	private $errors = [];
 	private $alterDb = false;
 	
@@ -23,14 +22,11 @@ class Database implements \Maphper\DataSource {
 		$this->primaryKey = $primaryKey;
 		
 		if (isset($options['resultClass'])) $this->resultClass = $options['resultClass'];
-		else if (class_exists(str_replace('_', '', $table))) $this->resultClass = str_replace('_', '', $table);
-		else $this->resultClass = 'stdClass';		
 
 		if (isset($options['fields'])) $this->fields = implode(',', array_map([$this, 'tick'], $options['fields']));
 
 		$this->defaultSort = (isset($options['defaultSort'])) ? $options['defaultSort'] : implode(', ', $this->primaryKey);
-		
-		if (isset($options['newCallback'])) $this->newCallback = $options['newCallback'];		
+
 		if (isset($options['editmode'])) $this->alterDb = $options['editmode'];		
 	}
 
@@ -43,8 +39,7 @@ class Database implements \Maphper\DataSource {
 	}
 	
 	public function createNew() {
-		$cb = $this->newCallback;
-		return (is_callable($cb)) ? $cb($this->resultClass) : new $this->resultClass;
+		return (is_callable($this->resultClass)) ? call_user_func($this->resultClass) : new $this->resultClass;
 	}
 	
 	public function deleteById($id) {
@@ -73,18 +68,28 @@ class Database implements \Maphper\DataSource {
 			foreach ($args as &$arg) if ($arg instanceof \DateTime) $arg = $arg->format('Y-m-d H:i:s');
 			if (count($args) > 0) $res = $stmt->execute($args);
 			else $res = $stmt->execute();
+			
+			//Don't return results if it was an insert query
 			if (strpos($query, 'INSERT') === 0) return $res;
-			//To allow object constructor args to be delegated via newCallback, this slightly inneficent loading needs to happen
-			//Cannot use FETCH_CLASS as the constructor arguments cannot be provided here
+			
+			//To allow object constructor args to be delegated via a callback, this slightly inneficent loading needs to happen
+			//Cannot use FETCH_CLASS as the constructor arguments may need to be provided by a factory
+			//Load the properties into a stdClass, construct the correct object type via factory call then set the properties on the new object
 			$result = $stmt->fetchAll(\PDO::FETCH_CLASS, 'stdClass');
 			if ($this->resultClass == 'stdClass' || $overrideClass == 'stdClass') {
 				$this->resultCache[$cacheId] = $this->processDates($result);
 				return $result;
 			}
 			$newResult = [];
+			//This allows writing to public properties in result classes
+			$writeClosure = function($field, $value) {
+				$this->$field = $value;
+			};
+			
 			foreach ($result as $obj) {
 				$new = $this->createNew();
-				foreach ($obj as $key => $value) $new->$key = $this->processDates($value);
+				$write = $writeClosure->bindTo($new);
+				foreach ($obj as $key => $value) $write($key, $this->processDates($value));
 				$this->cache[$obj->{$this->primaryKey[0]}] = $obj;
 				$newResult[] = $new;
 			}
@@ -93,14 +98,12 @@ class Database implements \Maphper\DataSource {
 		}
 		catch (\PDOException $e) {
 			$this->errors = $e->getMessage();
-			//echo $e->getMessage();
-			//echo $query;
 			return null;
 		}		
 	}
 
 	private function processDates($obj) {
-		if (is_array($obj) || is_object($obj)) foreach ($obj as &$o) $this->processDates($o);		
+		if (is_array($obj) || is_object($obj)) foreach ($obj as &$o) $o = $this->processDates($o);		
 		if (is_string($obj) && is_numeric($obj[0]) && strlen($obj) <= 20) {
 			try {
 				$date = new \DateTime($obj);
