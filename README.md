@@ -418,7 +418,7 @@ class Product {
 You can instruct Maphper to use this class using the 'resultClass' option in the $options array when creating the DataSource instance:
 
 ```php
-$dataSource = new \Maphper\DataSource\Database($pdo, 'product', 'id', ['resultClass' => 'Product]);
+$dataSource = new \Maphper\DataSource\Database($pdo, 'product', 'id', ['resultClass' => 'Product']);
 $products = new \Maphper\Maphper($dataSource);
 
 $product = $products[123];
