@@ -246,8 +246,9 @@ Similarly, you can define the inverse relation between authors and blogs. This i
 
 ```php
 //Create a one-to-one relationship between blogs and authors (a blog can only have one author)
+//Joining from the 'id' field in the authors mapper to the 'authorId' field in the blogs mapper
 $relation = new \Maphper\Relation(\Maphper\Relation::MANY, $blogs, 'id', 'authorId');
-$blogs->addRelation('author', $relation);
+$authors->addRelation('blogs', $relation);
 ```
 
 This is creating a relationship between authors and blogs using the id field in the $authors mapper to the authorId field in the $blogs mapper and making a blogs property available in an object returned by the $authors mapper;
@@ -256,7 +257,7 @@ This is creating a relationship between authors and blogs using the id field in 
 //Count all the blogs by the author with id 5
 $authors[4]->name . ' has posted ' .  count($authors[4]->blogs)  . ' blogs:<br />';
 
-//Loop through all the blogs created by the author with id 3
+//Loop through all the blogs created by the author with id 4
 foreach ($authors[4]->blogs as $blog) {
     echo $blog->title . '<br />';
 }
@@ -313,7 +314,7 @@ $author->blogs[] = $blog;
 Composite Primary Keys
 ----------------------
 
-For example if you had a table of products you could use the manufacturer id and manufacturer part number as primary keys (Two manufacuterers may use the same part number!)
+Maphper allows composite primary keys. For example, if you had a table of products you could use the manufacturer id and manufacturer part number as primary keys (Two manufacuterers may use the same part number!)
 
 To do this, define the data source with an array for the primary key:
 
@@ -386,4 +387,55 @@ $blogs = new \Maphper\DataSource\Database($pdo, 'blogs', ['id'], ['editmode' => 
 This should ony be enabled during development. In production you should set this to false.
 
 
+
+User defined classes for objects
+--------------------------------
+
+It's possible to use your own classes instead of stdClass for any object managed by Maphper. This object will automatically have its properties set when it is created.
+
+For example, if you had a product class:
+
+
+```php
+class Product {
+	public $name;
+	public $price;
+	
+	
+	const TAX_RATE = 0.2;
+	
+	public function getTax() {
+		return $this->price * self::TAX_RATE;
+	}
+	
+	public function getTotalPrice() {
+		return $this->price + $this->getTax();
+	}
+}
+```
+
+
+You can instruct Maphper to use this class using the 'resultClass' option in the $options array when creating the DataSource instance:
+
+```php
+$dataSource = new \Maphper\DataSource\Database($pdo, 'product', 'id', ['resultClass' => 'Product]);
+$products = new \Maphper\Maphper($dataSource);
+
+$product = $products[123];
+
+
+echo get_class($product); //"Product" instance
+
+//And as expected, the methods from Product are available:
+$tax = $product->getTax();
+$total = $product->getTotalPrice();
+```
+
+
+
+
+
+
+ 
+ 
 
