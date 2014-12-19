@@ -28,7 +28,7 @@ The main philosophy of Maphper is that the programmer should deal with sets of d
 Basic Usage
 ----------
 
-This sets up a Data Mapper that maps to the 'blog' table in a MySQL database. Each mapper has a data source. This source could be anything, a database table, an XML file, a folder full fo XML files, a CSV, a Twitter feed, a web service, or anything.
+This sets up a Data Mapper that maps to the 'blog' table in a MySQL database. Each mapper has a data source. This source could be anything, a database table, an XML file, a folder full of XML files, a CSV, a Twitter feed, a web service, or anything.
 
 The aim is to give the developer a consistent and simple API which is shared between any of the data sources. 
 
