@@ -29,8 +29,8 @@ class Database implements \Maphper\DataSource {
 	}
 
 	private function getAdapter(\PDO $pdo) {
-		$driver = $pdo->getAttribute(\PDO::ATTR_DRIVER_NAME);
-		if ($driver == 'mysql') return new MySqlAdapter($pdo);
+		$adapter = '\\Maphper\\DataSource\\' . $pdo->getAttribute(\PDO::ATTR_DRIVER_NAME) . 'Adapter';
+		return new $adapter($pdo);
 	}
 	
 	public function getPrimaryKey() {
