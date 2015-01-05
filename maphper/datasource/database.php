@@ -211,17 +211,17 @@ class Database implements \Maphper\DataSource {
 		$writeData = $read();			
 
 		try {
-			$result = $this->adapter->insert($this->table, $writeData);
+			$result = $this->adapter->insert($this->table, $this->primaryKey, $writeData);
 		}
 		catch (\PDOException $e) {
 			$result = null;
 		}
 		
 		if ($this->alterDb) {
-			$error = $this->adapter->getErrors();
+			$errors = $this->adapter->getErrors();
 			$pk = $this->primaryKey[0];
 			if ($result) $writeData->pk = $data->$pk = $result;
-			if (count($this->adapter->getErrors()) > 0) {
+			if (count($errors) > 0) {
 				$this->adapter->alterDatabase($this->table, $this->primaryKey, $writeData);
 				$this->save($writeData);
 			}
