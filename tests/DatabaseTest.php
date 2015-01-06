@@ -22,11 +22,12 @@ class DatabaseTest extends PHPUnit_Framework_TestCase {
 
 	protected function tearDown() {
 
-	}
-		
+	}	
+	
 	private function getDataSource($name, $primaryKey = 'id', array $options = []) {
 		return new \Maphper\DataSource\Database($this->pdo, $name, $primaryKey, $options);		
 	}
+	
 	
 	private function tableExists($name) {
 		$result = $this->pdo->query('SHOW TABLES LIKE "' . $name . '"');
@@ -73,6 +74,53 @@ class DatabaseTest extends PHPUnit_Framework_TestCase {
 		$this->assertEquals($result['title'], $blog->title);		
 		
 	}
+	
+	
+	public function testSaveNull() {
+		$this->dropTable('blog');
+		$mapper = new \Maphper\Maphper($this->getDataSource('blog', 'id', ['editmode' => true]));
+	
+		$blog = new stdclass;
+		$blog->id = 4;
+		$blog->title = null;
+		$mapper[] = $blog;
+	
+		$result = $this->pdo->query('SELECT * FROM blog WHERE id = 4')->fetch();
+	
+		$this->assertEquals(null, $result['title']);
+	
+	}
+	
+	
+	public function testSetToNull() {
+		$this->dropTable('blog');
+		$mapper = new \Maphper\Maphper($this->getDataSource('blog', 'id', ['editmode' => true]));
+	
+		$blog = new stdclass;
+		$blog->id = 4;
+		$blog->title = 'A title';
+		$mapper[] = $blog;
+	
+	
+		$result = $this->pdo->query('SELECT * FROM blog WHERE id = 4')->fetch();
+	
+		//Check the title was set originally correctly
+		$this->assertEquals($result['title'], $blog->title);
+	
+		//unset $mapper to clear any caching
+	
+		$mapper = new \Maphper\Maphper($this->getDataSource('blog', 'id', ['editmode' => true]));
+	
+		$blog->title = null;
+		$mapper[] = $blog;
+	
+	
+		$result = $this->pdo->query('SELECT * FROM blog WHERE id = 4')->fetch();
+	
+		//Now see if it's been correctly updated to NULL
+		$this->assertEquals(null, $result['title']);
+	}
+	
 	
 	public function testNotExists() {
 		$this->dropTable('blog');

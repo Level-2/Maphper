@@ -65,15 +65,12 @@ class SqliteAdapter implements DatabaseAdapter {
 				else $value = $value->format('Y-m-d H:i:s');
 			}
 			if (is_object($value)) continue;
-			if ($value === null) $tmp[] = $this->quote($field) . ' = NULL';
-			else {
-				if ($prependField){
-					$sql[] = $this->quote($field) . ' = :' . $field;
-				} else {
-					$sql[] = ':' . $field;
-				}
-				$args[$field] = $value;
+			if ($prependField){
+				$sql[] = $this->quote($field) . ' = :' . $field;
+			} else {
+				$sql[] = ':' . $field;
 			}
+			$args[$field] = $value;			
 		}
 		return ['sql' => $sql, 'args' => $args];
 	}

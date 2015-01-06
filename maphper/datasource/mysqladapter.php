@@ -59,11 +59,8 @@ class MySqlAdapter implements DatabaseAdapter {
 				else $value = $value->format('Y-m-d H:i:s');
 			}
 			if (is_object($value)) continue;
-			if ($value === null) $tmp[] = '`' . $field . '` = NULL';
-			else {
-				$sql[] = $this->quote($field) . ' = :' . $field . $affix;
-				$args[$field . $affix] = $value;
-			}
+			$sql[] = $this->quote($field) . ' = :' . $field . $affix;
+			$args[$field . $affix] = $value;
 		}
 		return ['sql' => $sql, 'args' => $args];
 	}
