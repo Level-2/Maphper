@@ -72,7 +72,6 @@ class DatabaseTest extends PHPUnit_Framework_TestCase {
 		$result = $this->pdo->query('SELECT * FROM blog WHERE id = 12')->fetch();
 		
 		$this->assertEquals($result['title'], $blog->title);		
-		
 	}
 	
 	
@@ -613,6 +612,28 @@ class DatabaseTest extends PHPUnit_Framework_TestCase {
 		
 		$this->assertEquals(1, count($blogs));
 		$this->assertEquals(1, count($authors));
+	}
+		
+	public function changeColumnType() {
+		$this->dropTable('blog');
+		$mapper = new \Maphper\Maphper($this->getDataSource('blog', 'id', ['editmode' => true]));
+	
+		$blog = new stdclass;
+		$blog->id = 4;
+	
+		//Start title off as INT
+		$blog->title = 10;
+		$mapper[] = $blog;
+	
+		$result = $this->pdo->query('SELECT * FROM blog WHERE id = 4')->fetch();
+		$this->assertEquals(10, $result['title']);
+	
+		$blog = $mapper[4];
+		$blog->title = 'ten';
+		$mapper[] = $blog;
+	
+		$result = $this->pdo->query('SELECT * FROM blog WHERE id = 4')->fetch();
+		$this->assertEquals('ten', $result['title']);
 	}
 
 
