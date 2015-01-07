@@ -70,7 +70,7 @@ class MySqlAdapter implements DatabaseAdapter {
 	public function insert($table, array $primaryKey, $data) {
 		$query = $this->buildSaveQuery($data);
 		$query1 = $this->buildSaveQuery($data, 1);		
-		$result = $this->query('INSERT INTO ' . $table . ' SET ' . implode(',', $query['sql']) . ' ON DUPLICATE KEY UPDATE ' . implode(',', $query1['sql']), array_merge($query['args'], $query1['args']));
+		return $this->query('INSERT INTO ' . $table . ' SET ' . implode(',', $query['sql']) . ' ON DUPLICATE KEY UPDATE ' . implode(',', $query1['sql']), array_merge($query['args'], $query1['args']));
 	}
 		
 	private function query($query, $args = []) {
