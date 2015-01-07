@@ -7,6 +7,8 @@ class MySqlAdapter implements DatabaseAdapter {
 	
 	public function __construct(\PDO $pdo) {
 		$this->pdo = $pdo;
+		//Set to strict mode to detect 'out of range' errors, action at a distance but it needs to be set for all INSERT queries		
+		$this->pdo->query('SET sql_mode = STRICT_ALL_TABLES');
 	}
 	
 	public function quote($str) {
@@ -96,9 +98,7 @@ class MySqlAdapter implements DatabaseAdapter {
 	}
 	
 	//Alter the database so that it can store $data
-	public function alterDatabase($table, array $primaryKey, $data) {
-		//Set to strict mode to detect 'out of range' errors
-		$this->pdo->query('SET sql_mode = STRICT_ALL_TABLES');
+	public function alterDatabase($table, array $primaryKey, $data) {		
 		$parts = [];
 		foreach ($primaryKey as $key) {
 			$pk = $data->$key;
