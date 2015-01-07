@@ -366,7 +366,7 @@ This can also be used in filters:
 
 ```php
 //Find all blogs posted on 2015-11-14
-$maphper->filter(['date' => new \DateTime('2015-11-14)]);
+$maphper->filter(['date' => new \DateTime('2015-11-14')]);
 
 ```
 
