@@ -93,14 +93,14 @@ class Maphper implements \Countable, \ArrayAccess, \Iterator {
 	}
 
 	public function offsetGet($offset) {
-		if (empty($offset)) {
+		if (isset($offset)) {
+			if (count($this->dataSource->getPrimaryKey()) > 1) return new MultiPk($this, $offset, $this->dataSource->getPrimaryKey());
+			return $this->attachRelations($this->dataSource->findById($offset));
+		}
+		else {
 			$obj = $this->dataSource->createNew();
 			foreach ($this->dataSource->getPrimaryKey() as $k) $obj->$k = null;
 			return $this->attachRelations($obj);
-		}
-		else {
-			if (count($this->dataSource->getPrimaryKey()) > 1) return new MultiPk($this, $offset, $this->dataSource->getPrimaryKey());
-			return $this->attachRelations($this->dataSource->findById($offset));
 		}
 	}
 	
