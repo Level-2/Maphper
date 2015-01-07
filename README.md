@@ -380,10 +380,55 @@ Maphper can be instructed to automatically construct database tables. This is do
 
 ```php
 $pdo = new PDO('mysql:dbname=maphpertest;host=127.0.0.1', 'username', 'password');
-$blogs = new \Maphper\DataSource\Database($pdo, 'blogs', ['id'], ['editmode' => true]);
+$blogs = new \Maphper\DataSource\Database($pdo, 'blogs', 'id', ['editmode' => true]);
 ```
 
 This should ony be enabled during development. In production you should set this to false.
+
+When editmode is set to true, the code 
+
+```php
+$blog = new stdClass;
+$blog->title = 'A blog';
+$blog->date = new \DateTime();
+$blogs[] = $blog;
+```
+
+For database mappers, this will issue a `CREATE TABLE` statement that creates a table called `blogs` with the columns `id INT auto_increment`, `title VARCHAR`, `date DATETIME`.
+
+### Type juggling
+
+Maphper will use the strictest possible type when creating a table. For instance:
+
+
+```php
+$blog = new stdClass;
+$blog->title = 1;
+$blogs[] = $blog;
+```
+
+This would create a `title` column as an integer because only an integer has been stored in it. However, if another record was added to the table after it was created with a different type:
+
+```php
+
+$blog = new stdClass;
+$blog->title = 'Another blog';
+$blogs[] = $blog;
+```
+
+This would issue an `ALTER TABLE` query and change the `title` colum to `varchar`. Similarly if a very long string was added as the title the column would be changed to `LONGBLOG`. This is all done on the fly and behind the scenes, as the developer you don't need to worry about the table structure at all.
+
+### Table creation caveats
+
+There are some things to note when using automatic table creation/modification
+
+- Maphper will never delete a column, even if you remove the data from every record
+- Maphper will never make a column type stricter. For example, if a column had a string it it but now only stores integers, maphper will never modify the column to `INT`
+
+
+### Indexes
+
+Currently Maphper does not add indexes to tables however this feature is planned for a future release.
 
 
 Concrete classes for mapped objects
