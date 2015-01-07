@@ -119,7 +119,7 @@ class MySqlAdapter implements DatabaseAdapter {
 			try {
 				if (!$this->pdo->query('ALTER TABLE ' . $table . ' ADD ' . $this->quote($key) . ' ' . $type)) throw new \Exception('Could not alter table');
 			}
-			catch (\PDOException $e) {
+			catch (\Exception $e) {
 				$this->pdo->query('ALTER TABLE ' . $table . ' MODIFY ' . $this->quote($key) . ' ' . $type);
 			}
 		}

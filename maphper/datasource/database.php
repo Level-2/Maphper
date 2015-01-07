@@ -228,17 +228,17 @@ class Database implements \Maphper\DataSource {
 		};
 		$read = $readClosure->bindTo($data, $data);
 		$writeData = $read();			
-
 		try {
 		//	print_r($writeData);			
 			$result = $this->adapter->insert($this->table, $this->primaryKey, $writeData);
 			//PDO may be silent so throw an exeption if the insert failed
-			if (!$result) throw new Exception('Could not insert into ' . $this->table);
+			if ($result->errorCode() > 0) throw new \Exception('Could not insert into ' . $this->table);
 		}
 		catch (\Exception $e) {
 			if ($this->alterDb) {
 				$this->adapter->alterDatabase($this->table, $this->primaryKey, $writeData);
 				$result =  $this->adapter->insert($this->table, $this->primaryKey, $writeData);
+				
 			}
 			else throw $e;
 		}		
@@ -248,6 +248,5 @@ class Database implements \Maphper\DataSource {
 		//Something has changed, clear any cached results as they may now be incorrect
 		$this->resultCache = [];
 		$this->cache[$this->primaryKey[0]] = $data;
-	}		
-	
+	}
 }
