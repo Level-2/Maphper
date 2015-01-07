@@ -189,7 +189,7 @@ $blogs[] = $blog;
 Relationships
 -------------
 
-If there was an Author table which stored information about blog authors, it could be set up in a similar way: 
+If there was an `author` table which stored information about blog authors, it could be set up in a similar way: 
 
 ```php
 $authorSource = new \Maphper\DataSource\Database($pdo, 'author', 'id');
@@ -245,16 +245,16 @@ Similarly, you can define the inverse relation between authors and blogs. This i
 
 
 ```php
-//Create a one-to-one relationship between blogs and authors (a blog can only have one author)
+//Create a one-to-many relationship between blogs and authors (an author can have multiple blog entries)
 //Joining from the 'id' field in the authors mapper to the 'authorId' field in the blogs mapper
 $relation = new \Maphper\Relation(\Maphper\Relation::MANY, $blogs, 'id', 'authorId');
 $authors->addRelation('blogs', $relation);
 ```
 
-This is creating a relationship between authors and blogs using the id field in the $authors mapper to the authorId field in the $blogs mapper and making a blogs property available in an object returned by the $authors mapper;
+This is creating a relationship between the `$authors` and `$blogs` mappers using the `id` field in the `$authors` mapper to the `authorId` field in the `$blogs` mapper and making a `blogs` property available for any object returned by the `$authors` mapper.
 
 ```php
-//Count all the blogs by the author with id 5
+//Count all the blogs by the author with id 4
 $authors[4]->name . ' has posted ' .  count($authors[4]->blogs)  . ' blogs:<br />';
 
 //Loop through all the blogs created by the author with id 4
@@ -266,7 +266,7 @@ foreach ($authors[4]->blogs as $blog) {
 Saving values with relationships
 --------------------------------
 
-Once you have created your mappers and defined the relationships between them, you can write to the relationships directly. For example:
+Once you have created your mappers and defined the relationships between them, you can write data using the relationship. This will automatically set any related fileds behind the scenes.
 
 
 ```php
@@ -284,11 +284,10 @@ $blog->author->name = 'Tom Butler';
 $blogs[] = $blog;
 ```
 
-This will save both the $blog object into the blog table and the $author object into the author table as well as setting the blog record's authorId column to the id that was generated.
+This will save both the `$blog` object into the `blog` table and the `$author` object into the `author` table as well as setting the blog record's authorId column to the id that was generated.
 
 
 You can also do the same with one-to-many relationships:
-
 
 
 ```php
@@ -306,7 +305,8 @@ $blog = new stdClass;
 $blog->title = 'My New Blog';
 $blog->date = new \DateTime();
 
-//Add the blog to the author. This will save to the database at the point it's added 
+//Add the blog to the author. This will save to the database at the this point, you do not need to explicitly 
+//Save the $author object after adding a blog to it.
 $author->blogs[] = $blog;
 ```
 
@@ -314,7 +314,7 @@ $author->blogs[] = $blog;
 Composite Primary Keys
 ----------------------
 
-Maphper allows composite primary keys. For example, if you had a table of products you could use the manufacturer id and manufacturer part number as primary keys (Two manufacuterers may use the same part number!)
+Maphper allows composite primary keys. For example, if you had a table of products you could use the manufacturer id and manufacturer part number as primary keys (Two manufacuterers may use the same part number)
 
 To do this, define the data source with an array for the primary key:
 
@@ -324,7 +324,7 @@ $productSource = new \Maphper\DataSource\Database($pdo, 'products', ['manufactur
 $products = new \Maphper\Maphper($productSource);
 ```
 
-Once you have defined the source to use multiple keys, you can treat the $products variable like a two dimensional array:
+Once you have defined the source to use multiple keys, you can treat the `$products` variable like a two dimensional array:
 
 ```php
 //Get the product with manufacturerId 7 and partNumber AC294
@@ -349,10 +349,9 @@ $products[1]['CANCOLA'] = $product;
 Dates
 -----
 
-Maphper uses the inbuilt \DateTime class from PHP to store and search by dates:
+Maphper uses the inbuilt PHP `\DateTime` class to store and search by dates:
 
 ```php
-
 $blog = new stdClass;
 $blog->title = 'A blog entry';
 
@@ -387,14 +386,12 @@ $blogs = new \Maphper\DataSource\Database($pdo, 'blogs', ['id'], ['editmode' => 
 This should ony be enabled during development. In production you should set this to false.
 
 
-
-User defined classes for objects
---------------------------------
+Concrete classes for mapped objects
+-----------------------------------
 
 It's possible to use your own classes instead of stdClass for any object managed by Maphper. This object will automatically have its properties set when it is created.
 
 For example, if you had a product class:
-
 
 ```php
 class Product {
@@ -410,11 +407,15 @@ class Product {
 	public function getTotalPrice() {
 		return $this->price + $this->getTax();
 	}
+	
+	public function setName($name) {
+		$this->name = $name;
+	}
 }
 ```
 
 
-You can instruct Maphper to use this class using the 'resultClass' option in the $options array when creating the DataSource instance:
+You can instruct Maphper to use this class using the `resultClass` option in the `$options` array when creating the DataSource instance:
 
 ```php
 $dataSource = new \Maphper\DataSource\Database($pdo, 'product', 'id', ['resultClass' => 'Product']);
@@ -431,6 +432,15 @@ $total = $product->getTotalPrice();
 ```
 
 Private properties are both saved and loaded as any normal properties.
+
+Similarly, you can create an instance of the `Product` class and save it to the mapper.
+
+```php
+$product = new Product;
+$product->setName('A Product');
+//Write the product to the mapper. Even though $product->name is private it will still be stored
+$products[] = $product;
+```
 
 ### Factory creation for new objects
 
@@ -472,7 +482,7 @@ In this case using:
 $dataSource = new \Maphper\DataSource\Database($pdo, 'product', 'id', ['resultClass' => 'Product']);
 ```
 
-Will error, because when an instance of Product is constructed, Maphper isn't smart enough to guess that a TaxCalculator instance is required as a constructor argument. Instead, you can pass a closure that returns a fully constructed object:
+Will error, because when an instance of `Product` is constructed, Maphper isn't smart enough to guess that a `TaxCalculator` instance is required as a constructor argument. Instead, you can pass a closure that returns a fully constructed object:
 
 
 ```php
