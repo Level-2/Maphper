@@ -7,7 +7,6 @@ class MySqlAdapter implements DatabaseAdapter {
 	
 	public function __construct(\PDO $pdo) {
 		$this->pdo = $pdo;
-		$this->errorMode = $pdo->getAttribute(\PDO::ATTR_ERRMODE);
 	}
 	
 	public function quote($str) {
@@ -26,7 +25,7 @@ class MySqlAdapter implements DatabaseAdapter {
 		if ($offset) {
 			$offset = $offset ? ' OFFSET ' . $offset : '';
 			if (!$limit) $limit = ' LIMIT  1000';
-		}	
+		}
 		
 		$order = $order ? ' ORDER BY ' . $order : '';  	
 		return $this->query('SELECT * FROM ' . $table . ' ' . $where . $order . $limit . $offset, $args);
@@ -44,10 +43,6 @@ class MySqlAdapter implements DatabaseAdapter {
 			return $ret;
 		}
 		else return 0;
-	}
-	
-	public function getErrors() {
-		return $this->query('SHOW WARNINGS');
 	}
 	
 	private function buildSaveQuery($data, $affix = '') {
@@ -69,47 +64,26 @@ class MySqlAdapter implements DatabaseAdapter {
 	
 	public function insert($table, array $primaryKey, $data) {
 		$query = $this->buildSaveQuery($data);
-		$query1 = $this->buildSaveQuery($data, 1);		
+		$query1 = $this->buildSaveQuery($data, 1);
 		return $this->query('INSERT INTO ' . $table . ' SET ' . implode(',', $query['sql']) . ' ON DUPLICATE KEY UPDATE ' . implode(',', $query1['sql']), array_merge($query['args'], $query1['args']));
 	}
-		
+	
 	private function query($query, $args = []) {
 		$queryId = md5($query);
 		
 		if (isset($this->queryCache[$queryId])) $stmt = $this->queryCache[$queryId];
 		else {
-			try {
-				$this->setErrorMode(\PDO::ERRMODE_EXCEPTION);
-				$stmt = $this->pdo->prepare($query, [\PDO::ATTR_CURSOR => \PDO::CURSOR_FWDONLY]);
-			}
-			catch (\PDOException $e) {
-				return null;
-			}
-			finally {
-				$this->setErrorMode($this->errorMode);
-			}
-			$this->queryCache[$queryId] = $stmt;
+			$stmt = $this->pdo->prepare($query, [\PDO::ATTR_CURSOR => \PDO::CURSOR_FWDONLY]);			
+			if ($stmt) $this->queryCache[$queryId] = $stmt;
 		}
 		
 		foreach ($args as &$arg) if ($arg instanceof \DateTime) $arg = $arg->format('Y-m-d H:i:s');
+
+		if (count($args) > 0) $res = $stmt->execute($args);
+		else $res = $stmt->execute();
 		
-		try {
-			$this->setErrorMode(\PDO::ERRMODE_EXCEPTION);
-			if (count($args) > 0) $res = $stmt->execute($args);
-			else $res = $stmt->execute();
-			return $stmt->fetchAll(\PDO::FETCH_OBJ);
-		}
-		catch (\Exception $e) {
-			return [];
-		}
-		finally {
-			$this->setErrorMode($this->errorMode);
-		}
-			
-	}
-	
-	private function setErrorMode($mode) {
-		if ($this->errorMode != \PDO::ERRMODE_EXCEPTION) $pdo->setAttribute(PDO::ATTR_ERRMODE, $mode);
+		if (strpos(trim($query), 'SELECT') === 0) return $stmt->fetchAll(\PDO::FETCH_OBJ);
+		else return $stmt;			
 	}
 	
 	private function getType($val) {
@@ -123,6 +97,8 @@ class MySqlAdapter implements DatabaseAdapter {
 	
 	//Alter the database so that it can store $data
 	public function alterDatabase($table, array $primaryKey, $data) {
+		//Set to strict mode to detect 'out of range' errors
+		$this->pdo->query('SET sql_mode = STRICT_ALL_TABLES');
 		$parts = [];
 		foreach ($primaryKey as $key) {
 			$pk = $data->$key;
@@ -132,7 +108,8 @@ class MySqlAdapter implements DatabaseAdapter {
 		
 		$pkField = implode(', ', $parts) . ', PRIMARY KEY(' . implode(', ', $primaryKey) . ')';
 		$this->pdo->query('CREATE TABLE IF NOT EXISTS ' . $table . ' (' . $pkField . ')');
-		
+	
+
 		foreach ($data as $key => $value) {
 			if (is_array($value) || (is_object($value) && !($value instanceof \DateTime))) continue;
 			if (in_array($key, $primaryKey)) continue;
@@ -140,7 +117,7 @@ class MySqlAdapter implements DatabaseAdapter {
 			$type = $this->getType($value);
 		
 			try {
-				$this->pdo->query('ALTER TABLE ' . $table . ' ADD ' . $this->quote($key) . ' ' . $type);
+				if (!$this->pdo->query('ALTER TABLE ' . $table . ' ADD ' . $this->quote($key) . ' ' . $type)) throw new \Exception('Could not alter table');
 			}
 			catch (\PDOException $e) {
 				$this->pdo->query('ALTER TABLE ' . $table . ' MODIFY ' . $this->quote($key) . ' ' . $type);

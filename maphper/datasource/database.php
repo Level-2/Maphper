@@ -78,16 +78,7 @@ class Database implements \Maphper\DataSource {
 	public function getErrors() {
 		return $this->errors;
 	}
-
-	public function findById($id) {
-		if (!isset($this->cache[$id])) {
-			$result = $this->adapter->select($this->table, [$this->getPrimaryKey()[0] . ' = :id'], [':id' => $id]);
-			if (isset($result[0])) 	$this->cache[$id] = $this->wrap($result)[0];
-			else return null;
-		}
-		return $this->cache[$id];
-	}
-
+	
 	private function buildFindQuery($fields, $mode){
 		$args = [];
 		$sql = [];	
@@ -144,6 +135,22 @@ class Database implements \Maphper\DataSource {
 		return ['args' => $args, 'sql' => [$query]];
 	}
 
+		
+	public function findById($id) {
+		if (!isset($this->cache[$id])) {
+			try {
+				$result = $this->adapter->select($this->table, [$this->getPrimaryKey()[0] . ' = :id'], [':id' => $id]);
+			}
+			catch (\Exception $e) {
+				$this->errors[] = $e;
+			}
+				
+			if (isset($result[0])) 	$this->cache[$id] = $this->wrap($result)[0];
+			else return null;
+		}
+		return $this->cache[$id];
+	}
+	
 	public function findAggregate($function, $field, $group = null, array $criteria = [], array $options = []) {
 		//Cannot count/sum/max multiple fields, pick the first one. This should only come into play when trying to count() a mapper with multiple primary keys
 		if (is_array($field)) $field = $field[0];
@@ -151,10 +158,16 @@ class Database implements \Maphper\DataSource {
 		$query = $this->buildFindQuery($criteria, \Maphper\Maphper::FIND_EXACT | \Maphper\Maphper::FIND_AND);
 		$args = $query['args'];
 		$sql = $query['sql'];
-			
-		return $this->adapter->aggregate($this->table, $function, $field, $sql, $args, $group);	
+		try {
+			return $this->adapter->aggregate($this->table, $function, $field, $sql, $args, $group);
+		}
+		catch (\Exception $e) {
+			$this->errors[] = $e;
+			return $group ? [] : 0;
+		}
 	}
-	
+		
+
 	public function findByField(array $fields, $options = []) {
 		$cacheId = md5(serialize(func_get_args()));	
 		if (!isset($this->resultCache[$cacheId])) {
@@ -168,10 +181,16 @@ class Database implements \Maphper\DataSource {
 			$offset = (isset($options['offset'])) ? $options['offset'] : '';
 	
 			$order = (!isset($options['order'])) ? $this->defaultSort : $order = $options['order'];
-			$this->resultCache[$cacheId] = $this->wrap($this->adapter->select($this->table, $sql, $args, $order, $limit, $offset));
+			try {
+				$this->resultCache[$cacheId] = $this->wrap($this->adapter->select($this->table, $sql, $args, $order, $limit, $offset));
+			}
+			catch (\Exception $e) {
+				$this->errors[] = $e;
+				$this->resultCache[$cacheId] = [];
+			}
 		}
 		return $this->resultCache[$cacheId];
-	}	
+	}
 
 	
 	public function deleteByField(array $fields, array $options = [], $mode = null) {
@@ -211,22 +230,19 @@ class Database implements \Maphper\DataSource {
 		$writeData = $read();			
 
 		try {
+		//	print_r($writeData);			
 			$result = $this->adapter->insert($this->table, $this->primaryKey, $writeData);
+			//PDO may be silent so throw an exeption if the insert failed
+			if (!$result) throw new Exception('Could not insert into ' . $this->table);
 		}
-		catch (\PDOException $e) {
-			$result = null;
-		}
-		
-		if ($this->alterDb) {
-			$errors = $this->adapter->getErrors();
-			$pk = $this->primaryKey[0];
-			if ($result) $writeData->pk = $data->$pk = $result;
-			if (count($errors) > 0) {
+		catch (\Exception $e) {
+			if ($this->alterDb) {
 				$this->adapter->alterDatabase($this->table, $this->primaryKey, $writeData);
-				$this->save($writeData);
+				$result =  $this->adapter->insert($this->table, $this->primaryKey, $writeData);
 			}
-		}
-		
+			else throw $e;
+		}		
+
 		//TODO: This will error if the primary key is a private field	
 		if ($new && count($this->primaryKey) == 1) $data->{$this->primaryKey} = $this->db->lastInsertId();
 		//Something has changed, clear any cached results as they may now be incorrect

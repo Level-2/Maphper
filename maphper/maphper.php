@@ -124,6 +124,10 @@ class Maphper implements \Countable, \ArrayAccess, \Iterator {
 		}
 	}
 
+	public function getErrors() {
+		return $this->dataSource->getErrors();
+	}
+	
 	public function filter($filter) {
 		$maphper = new Maphper($this->dataSource, $this->settings, $this->relations);
 		$maphper->settings['filter'] = $filter + $this->settings['filter'];

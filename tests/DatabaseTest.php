@@ -614,7 +614,7 @@ class DatabaseTest extends PHPUnit_Framework_TestCase {
 		$this->assertEquals(1, count($authors));
 	}
 		
-	public function changeColumnType() {
+	public function testChangeColumnType() {
 		$this->dropTable('blog');
 		$mapper = new \Maphper\Maphper($this->getDataSource('blog', 'id', ['editmode' => true]));
 	
