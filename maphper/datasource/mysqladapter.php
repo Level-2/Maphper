@@ -3,9 +3,11 @@ namespace Maphper\DataSource;
 class MySqlAdapter implements DatabaseAdapter {
 	private $pdo;
 	private $queryCache = [];
+	private $errorMode;
 	
 	public function __construct(\PDO $pdo) {
-		$this->pdo = $pdo;	
+		$this->pdo = $pdo;
+		$this->errorMode = $pdo->getAttribute(\PDO::ATTR_ERRMODE);
 	}
 	
 	public function quote($str) {
@@ -77,10 +79,14 @@ class MySqlAdapter implements DatabaseAdapter {
 		if (isset($this->queryCache[$queryId])) $stmt = $this->queryCache[$queryId];
 		else {
 			try {
+				$this->setErrorMode(\PDO::ERRMODE_EXCEPTION);
 				$stmt = $this->pdo->prepare($query, [\PDO::ATTR_CURSOR => \PDO::CURSOR_FWDONLY]);
 			}
 			catch (\PDOException $e) {
 				return null;
+			}
+			finally {
+				$this->setErrorMode($this->errorMode);
 			}
 			$this->queryCache[$queryId] = $stmt;
 		}
@@ -88,6 +94,7 @@ class MySqlAdapter implements DatabaseAdapter {
 		foreach ($args as &$arg) if ($arg instanceof \DateTime) $arg = $arg->format('Y-m-d H:i:s');
 		
 		try {
+			$this->setErrorMode(\PDO::ERRMODE_EXCEPTION);
 			if (count($args) > 0) $res = $stmt->execute($args);
 			else $res = $stmt->execute();
 			return $stmt->fetchAll(\PDO::FETCH_OBJ);
@@ -95,7 +102,14 @@ class MySqlAdapter implements DatabaseAdapter {
 		catch (\Exception $e) {
 			return [];
 		}
+		finally {
+			$this->setErrorMode($this->errorMode);
+		}
 			
+	}
+	
+	private function setErrorMode($mode) {
+		if ($this->errorMode != \PDO::ERRMODE_EXCEPTION) $pdo->setAttribute(PDO::ATTR_ERRMODE, $mode);
 	}
 	
 	private function getType($val) {
