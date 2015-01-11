@@ -1,13 +1,8 @@
 <?php
 namespace Maphper\DataSource;
 class SqliteAdapter implements DatabaseAdapter {
-	const ERROR_PREPARE = 0;
-	const ERROR_EXECUTE = 1;
-	const ERROR_INSERT  = 2;
-		
 	private $pdo;
 	private $queryCache = [];
-	private $errors = [];
 	
 	public function __construct(\PDO $pdo) {
 		$this->pdo = $pdo;	
@@ -50,10 +45,6 @@ class SqliteAdapter implements DatabaseAdapter {
 		else return 0;
 	}
 	
-	public function getErrors() {
-		return $this->errors;
-	}
-	
 	private function buildSaveQuery($data, $prependField = false) {
 		$sql = [];
 		$args = [];
@@ -78,8 +69,8 @@ class SqliteAdapter implements DatabaseAdapter {
 	public function insert($table, array $primaryKey, $data) {
 		$query = $this->buildSaveQuery($data);
 		$result = $this->query('INSERT INTO ' . $this->quote($table) . ' ('.implode(', ', array_keys($query['args'])).') VALUES ( ' . implode(', ', $query['sql']). ' )', $query['args']);
-		
-		if (in_array( \Maphper\DataSource\SqliteAdapter::ERROR_INSERT, $this->getErrors())) {
+
+		if ($result->errorCode() > 0) {
 			$query = $this->buildSaveQuery($data, true);
 			$where = [];
 			foreach($primaryKey as $field) $where[] = $this->quote($field) . ' = :' . $field;
@@ -90,7 +81,6 @@ class SqliteAdapter implements DatabaseAdapter {
 	}
 		
 	private function query($query, $args = []) {
-		$this->errors = [];
 		$queryId = md5($query);
 		if (isset($this->queryCache[$queryId])) $stmt = $this->queryCache[$queryId];
 		else {
@@ -111,12 +101,7 @@ class SqliteAdapter implements DatabaseAdapter {
 				else return $stmt;
 			}
 			catch (\Exception $e) {
-				if (substr($query, 0, 6) === 'INSERT') {
-					$this->errors[] = \Maphper\DataSource\SqliteAdapter::ERROR_INSERT;
-				} else {
-					$this->errors[] = \Maphper\DataSource\SqliteAdapter::ERROR_EXECUTE;
-				}
-				return [];
+				return $stmt;
 			}
 		}
 	}
