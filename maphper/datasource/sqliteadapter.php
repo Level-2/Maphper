@@ -85,6 +85,8 @@ class SqliteAdapter implements DatabaseAdapter {
 			foreach($primaryKey as $field) $where[] = $this->quote($field) . ' = :' . $field;
 			$result = $this->query('UPDATE ' . $this->quote($table) . ' SET ' . implode(', ', $query['sql']). ' WHERE '. implode(' AND ', $where), $query['args']);
 		}
+
+		return $result;
 	}
 		
 	private function query($query, $args = []) {
@@ -92,16 +94,8 @@ class SqliteAdapter implements DatabaseAdapter {
 		$queryId = md5($query);
 		if (isset($this->queryCache[$queryId])) $stmt = $this->queryCache[$queryId];
 		else {
-			try {
-				$stmt = $this->pdo->prepare($query, [\PDO::ATTR_CURSOR => \PDO::CURSOR_FWDONLY]);
-			}
-			catch (\PDOException $e){
-				$this->errors[] = \Maphper\DataSource\SqliteAdapter::ERROR_PREPARE;
-				return null;
-			}
-			if ($stmt !== false) {
-				$this->queryCache[$queryId] = $stmt;
-			}
+			$stmt = $this->pdo->prepare($query, [\PDO::ATTR_CURSOR => \PDO::CURSOR_FWDONLY]);
+			if ($stmt) $this->queryCache[$queryId] = $stmt;
 		}
 		
 		foreach ($args as &$arg) if ($arg instanceof \DateTime) {
@@ -113,7 +107,8 @@ class SqliteAdapter implements DatabaseAdapter {
 			try {
 				if (count($args) > 0) $res = $stmt->execute($args);
 				else $res = $stmt->execute();
-				return $stmt->fetchAll(\PDO::FETCH_OBJ);
+				if (substr($query, 0, 6) === 'SELECT') return $stmt->fetchAll(\PDO::FETCH_OBJ);
+				else return $stmt;
 			}
 			catch (\Exception $e) {
 				if (substr($query, 0, 6) === 'INSERT') {
@@ -124,7 +119,6 @@ class SqliteAdapter implements DatabaseAdapter {
 				return [];
 			}
 		}
-			
 	}
 	
 	private function getType($val) {
@@ -139,18 +133,11 @@ class SqliteAdapter implements DatabaseAdapter {
 	//Alter the database so that it can store $data
 	public function alterDatabase($table, array $primaryKey, $data) {
 		$affix = '_'.substr(md5($table), 0, 6);
-		$this->createTempTable($table . $affix, $primaryKey, $data);
+		$this->createTable($table . $affix, $primaryKey, $data);
 		$fields = [];
 		foreach ($data as $key => $value) { $fields[] = $key; }
 		try {
-			$results = $this->pdo->query('SELECT * FROM '.$table);
-			$results->setFetchMode(\PDO::FETCH_ASSOC);
-			foreach($results as $result) {
-				foreach(array_keys($result) as $key) if (!in_array($key, $fields)) unset($result[$key]);
-				$prepend = function($key) { return ':'.$key; };
-				$stmt = $this->pdo->prepare('INSERT INTO ' . $this->quote($table . $affix) . ' ('.implode(', ', array_map([$this, 'quote'], array_keys($result))).') VALUES ( ' . implode(', ', array_map($prepend, array_keys($result))). ' )', [\PDO::ATTR_CURSOR => \PDO::CURSOR_FWDONLY]);
-				$stmt->execute($result);
-			}
+			$this->pdo->query('INSERT INTO ' . $this->quote($table . $affix) .' SELECT * FROM ' . $this->quote($table));
 			$this->pdo->query('DROP TABLE IF EXISTS ' . $table );
 		}
 		catch (\PDOException $e) {
@@ -159,7 +146,7 @@ class SqliteAdapter implements DatabaseAdapter {
 		$this->pdo->query('ALTER TABLE ' . $table . $affix. ' RENAME TO '. $table );
 	}
 
-	public function createTempTable($table, array $primaryKey, $data) {
+	public function createTable($table, array $primaryKey, $data) {
 		$parts = [];
 		foreach ($primaryKey as $key) {
 			$pk = $data->$key;
