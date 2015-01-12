@@ -13,16 +13,18 @@ class One {
 	private function getData() {
 		if (empty($this->data)) {
 			$results = $this->relation->mapper->filter([$this->relation->parentField => $this->parentField]);
-			$this->data = $results->item(0);
+			if (count($results) > 0) $this->data = $results->item(0);
+			else $this->data = null;
 		}
 		return $this->data;
 	}
 
 	public function __get($name) {
-		return $this->getData()->$name;
+		if ($this->getData()) return $this->getData()->$name;
 	}
 
-	public function __call($func, $args) {
+	public function __call($func, array $args = []) {
+		if ($this->getData() == null) return '';
 		return call_user_func_array([$this->getData(), $func], $args);
 	}
 	
