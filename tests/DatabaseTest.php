@@ -230,14 +230,14 @@ class DatabaseTest extends PHPUnit_Framework_TestCase {
 	}
 	
 	public function testResultClassNew() {
-		$blogs = new \Maphper\Maphper($this->getDataSource('blog', 'id', ['resultClass' => 'blog']));
+		$blogs = new \Maphper\Maphper($this->getDataSource('blog', 'id'), ['resultClass' => 'blog']);
 		$blog = $blogs[null];
 		$this->assertInstanceOf('blog', $blog);
 	}
 	
 	public function testResultClassExisting() {
 		$this->populateBlogs();
-		$blogs = new \Maphper\Maphper($this->getDataSource('blog', 'id', ['resultClass' => 'blog']));
+		$blogs = new \Maphper\Maphper($this->getDataSource('blog', 'id'), ['resultClass' => 'blog']);
 		
 		foreach ($blogs as $blog) {
 			$this->assertInstanceOf('blog', $blog);
@@ -249,7 +249,7 @@ class DatabaseTest extends PHPUnit_Framework_TestCase {
 	 */
 	public function testResultClassPrivateProperties() {
 		$this->populateBlogs();
-		$blogs = new \Maphper\Maphper($this->getDataSource('blog', 'id', ['resultClass' => 'BlogPrivate']));
+		$blogs = new \Maphper\Maphper($this->getDataSource('blog', 'id'), ['resultClass' => 'BlogPrivate']);
 	
 		$blog = $blogs[2];
 		$this->assertInstanceOf('BlogPrivate', $blog);
@@ -258,7 +258,7 @@ class DatabaseTest extends PHPUnit_Framework_TestCase {
 	
 	public function testResultClassPrivatePropertiesWrite() {
 		$this->populateBlogs();
-		$blogs = new \Maphper\Maphper($this->getDataSource('blog', 'id', ['resultClass' => 'BlogPrivate']));
+		$blogs = new \Maphper\Maphper($this->getDataSource('blog', 'id'), ['resultClass' => 'BlogPrivate']);
 	
 		$blog = $blogs[2];
 		
@@ -269,7 +269,7 @@ class DatabaseTest extends PHPUnit_Framework_TestCase {
 		//Reload the mapper to ensure no cacheing is used
 		unset($blogs);
 		unset($blog);
-		$blogs = new \Maphper\Maphper($this->getDataSource('blog', 'id', ['resultClass' => 'BlogPrivate']));
+		$blogs = new \Maphper\Maphper($this->getDataSource('blog', 'id'), ['resultClass' => 'BlogPrivate']);
 		
 		$blog = $blogs[2];
 		
@@ -279,7 +279,7 @@ class DatabaseTest extends PHPUnit_Framework_TestCase {
 	
 	public function testLoopKey() {
 		$this->populateBlogs();
-		$blogs = new \Maphper\Maphper($this->getDataSource('blog', 'id', ['resultClass' => 'blog']));
+		$blogs = new \Maphper\Maphper($this->getDataSource('blog', 'id'), ['resultClass' => 'blog']);
 		
 		foreach ($blogs as $id => $blog) {
 			$this->assertEquals($id, $blog->id);
@@ -288,7 +288,7 @@ class DatabaseTest extends PHPUnit_Framework_TestCase {
 	
 	public function testAlterColumnType() {
 		$this->populateBlogs();
-		$blogs = new \Maphper\Maphper($this->getDataSource('blog', 'id', ['resultClass' => 'blog', 'editmode' => true]));
+		$blogs = new \Maphper\Maphper($this->getDataSource('blog', 'id', ['editmode' => true]), ['resultClass' => 'blog']);
 		$blog = $blogs[3];
 		$blog->rating = 'VVV';
 		
