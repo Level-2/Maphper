@@ -1,31 +1,35 @@
 <?php 
 namespace Maphper\DataSource;
 class Database implements \Maphper\DataSource {
+	const EDIT_STRUCTURE = 1;
+	const EDIT_INDEX = 2;
+	const EDIT_OPTIMISE = 4;
+	const EDIT_ALL = self::EDIT_STRUCTURE | self::EDIT_INDEX | self::EDIT_OPTIMISE;
+	
 	private $table;
 	private $cache = [];
 	private $primaryKey;
-	private $resultClass = 'stdClass';
 	private $fields = '*';
 	private $defaultSort;
 	private $resultCache = [];	
 	private $errors = [];
-	private $alterDb = false;
+	private $alterDb = false;	
+	
 	
 	public function __construct($db, $table, $primaryKey = 'id', array $options = []) {
 		if ($db instanceof \PDO) $this->adapter = $this->getAdapter($db);
 		else $this->adapter = $db;
-
-		$this->table = $table;
-		if (!is_array($primaryKey)) $primaryKey = [$primaryKey];
-		$this->primaryKey = $primaryKey;
 		
-		if (isset($options['resultClass'])) $this->resultClass = $options['resultClass'];
+		$this->table = $table;
+		$this->primaryKey = is_array($primaryKey) ? $primaryKey : [$primaryKey];
 
 		if (isset($options['fields'])) $this->fields = implode(',', array_map([$this->adapter, 'quote'], $options['fields']));
 
 		$this->defaultSort = (isset($options['defaultSort'])) ? $options['defaultSort'] : implode(', ', $this->primaryKey);
 
-		if (isset($options['editmode'])) $this->alterDb = $options['editmode'];		
+		if (isset($options['editmode'])) $this->alterDb = $options['editmode'] == true ? self::EDIT_ALL : $options['editmode'];
+
+		if (self::EDIT_OPTIMISE & $this->alterDb && rand(0,500) == 1) $this->adapter->optimiseColumns($table);
 	}
 
 	private function getAdapter(\PDO $pdo) {
@@ -37,33 +41,14 @@ class Database implements \Maphper\DataSource {
 		return $this->primaryKey;
 	}
 	
-	public function createNew() {
-		return (is_callable($this->resultClass)) ? call_user_func($this->resultClass) : new $this->resultClass;
-	}
+	
 	
 	public function deleteById($id) {
 		$this->adapter->delete($this->table, [$this->primaryKey[0] . ' = :id'], [':id' => $id], 1);		
 		unset($this->cache[$id]);
 	}
-	
-	private function wrap($result) {
-		$newResult = [];			
-		//This allows writing to private properties in result classes
-		$writeClosure = function($field, $value) {
-			$this->$field = $value;
-		};
 		
-		foreach ($result as $obj) {
-			$new = $this->createNew();
-			$write = $writeClosure->bindTo($new, $new);
-			foreach ($obj as $key => $value) $write($key, $this->processDates($value));
-			$this->cache[$obj->{$this->primaryKey[0]}] = $new;
-			$newResult[] = $new;
-		}
-		return $newResult;
-	}
-	
-	private function processDates($obj) {
+	public function processDates($obj) {
 		if (is_array($obj) || is_object($obj)) foreach ($obj as &$o) $o = $this->processDates($o);		
 		if (is_string($obj) && is_numeric($obj[0]) && strlen($obj) <= 20) {
 			try {
@@ -139,13 +124,13 @@ class Database implements \Maphper\DataSource {
 	public function findById($id) {
 		if (!isset($this->cache[$id])) {
 			try {
-				$result = $this->adapter->select($this->table, [$this->getPrimaryKey()[0] . ' = :id'], [':id' => $id]);
+				$result = $this->adapter->select($this->table, [$this->getPrimaryKey()[0] . ' = :id'], [':id' => $id], null, 1);
 			}
 			catch (\Exception $e) {
 				$this->errors[] = $e;
 			}
 				
-			if (isset($result[0])) 	$this->cache[$id] = $this->wrap($result)[0];
+			if (isset($result[0])) 	$this->cache[$id] = $result[0];
 			else return null;
 		}
 		return $this->cache[$id];
@@ -159,6 +144,10 @@ class Database implements \Maphper\DataSource {
 		$args = $query['args'];
 		$sql = $query['sql'];
 		try {
+			if (self::EDIT_INDEX & $this->alterDb) {
+				$this->adapter->addIndex($this->table, array_keys($args));
+				if ($group) $this->adapter->addIndex($this->table, explode(',', $group));
+			}
 			return $this->adapter->aggregate($this->table, $function, $field, $sql, $args, $group);
 		}
 		catch (\Exception $e) {
@@ -182,7 +171,11 @@ class Database implements \Maphper\DataSource {
 	
 			$order = (!isset($options['order'])) ? $this->defaultSort : $order = $options['order'];
 			try {
-				$this->resultCache[$cacheId] = $this->wrap($this->adapter->select($this->table, $sql, $args, $order, $limit, $offset));
+				$this->resultCache[$cacheId] = $this->adapter->select($this->table, $sql, $args, $order, $limit, $offset);
+				if (self::EDIT_INDEX & $this->alterDb) {
+					$this->adapter->addIndex($this->table, array_keys($args));
+					$this->adapter->addIndex($this->table, explode(',', $order));
+				}
 			}
 			catch (\Exception $e) {
 				$this->errors[] = $e;
@@ -207,7 +200,9 @@ class Database implements \Maphper\DataSource {
 		if (isset($options['limit']) != null) $limit = ' LIMIT ' . $options['limit'];
 		else $limit = '';
 	
-		$this->adapter->delete($this->table, $sql, $args, $limit);		
+		$this->adapter->delete($this->table, $sql, $args, $limit);
+		if (self::EDIT_INDEX & $this->alterDb)	$this->adapter->addIndex($this->table, array_keys($args));
+
 		//Clear the cache
 		$this->cache = [];
 		$this->resultCache = [];
@@ -235,7 +230,7 @@ class Database implements \Maphper\DataSource {
 			if ($result->errorCode() > 0) throw new \Exception('Could not insert into ' . $this->table);
 		}
 		catch (\Exception $e) {
-			if ($this->alterDb) {
+			if (self::EDIT_STRUCTURE & $this->alterDb) {
 				$this->adapter->alterDatabase($this->table, $this->primaryKey, $writeData);
 				$result =  $this->adapter->insert($this->table, $this->primaryKey, $writeData);
 				

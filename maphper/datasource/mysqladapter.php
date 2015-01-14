@@ -124,4 +124,39 @@ class MySqlAdapter implements DatabaseAdapter {
 			}
 		}
 	}
+	
+	public function addIndex($table, array $fields) {
+		//Sort the fields so that the index is never created twice (col1, col2) then (col2, col1)
+		sort($fields);
+		$fields = array_map('strtolower', $fields);
+		$fields = array_map('trim', $fields);
+		$keyName = $this->quote(implode('_', $fields));
+		$results = $this->pdo->query('SHOW INDEX FROM ' . $this->quote($table) . ' WHERE Key_Name = "' . $keyName . '"')->fetchAll();
+		if (count($results) == 0)  $this->pdo->query('CREATE INDEX ' . $keyName . ' ON ' . $this->quote($table) . '(' . implode(', ', $fields) . ')');
+	}
+	
+	public function optimiseColumns($table) {
+		$columns = $this->pdo->query('SELECT * FROM '. $this->quote($table) . ' PROCEDURE ANALYSE(1,1)')->fetchAll(\PDO::FETCH_OBJ);
+		foreach ($columns as $column) {
+			$name = $this->quote(end((explode('.', $column->Field_name))));
+			if ($column->Min_value === null && $column->Max_value === null) $this->pdo->query('ALTER TABLE ' . $this->quote($table) . ' DROP COLUMN ' . $name);
+			else {
+				$type = $column->Optimal_fieldtype;
+				if ($column->Max_length < 11) {
+					//Check for dates
+					$count = $this->pdo->query('SELECT count(*) as `count` FROM ' . $this->quote($table) . ' WHERE STR_TO_DATE(' . $name . ',\'%Y-%m-%d %H:%i:s\') IS NULL OR STR_TO_DATE(' . $name . ',\'%Y-%m-%d %H:%i:s\') != ' . $name . ' LIMIT 1')->fetch(\PDO::FETCH_OBJ)->count;
+					if ($count == 0) $type = 'DATETIME';
+					
+					//See if it's numeric
+					$count = $this->pdo->query('SELECT count(*) FROM ' . $this->table . ' WHERE concat(\'\', ' . $name . ' * 1) != ABS(' . $name . ')) LIMIT 1')->fetch(\PDO::FETCH_OBJ)->count;
+					if ($count == 0) $type = 'INT(11)';
+					
+					$count = $this->pdo->query('SELECT count(*) as `count` FROM ' . $this->quote($table) . ' WHERE STR_TO_DATE(' . $name . ',\'%Y-%m-%d\') IS NULL OR STR_TO_DATE(' . $name . ',\'%Y-%m-%d\') != ' . $name . ' LIMIT 1')->fetch(\PDO::FETCH_OBJ)->count;
+					if ($count == 0) $type = 'DATE';
+				}				
+				$this->pdo->query('ALTER TABLE ' . $this->quote($table) . ' MODIFY '. $name . ' ' . $type);				
+			}
+			
+		}
+	}
 }

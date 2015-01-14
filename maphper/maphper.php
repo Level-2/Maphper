@@ -17,16 +17,17 @@ class Maphper implements \Countable, \ArrayAccess, \Iterator {
 	
 	private $dataSource;
 	private $relations = [];	
-	private $settings = ['filter' => [], 'sort' => null, 'limit' => null, 'offset' => null];	
+	private $settings = ['filter' => [], 'sort' => null, 'limit' => null, 'offset' => null, 'resultClass' => '\\stdClass'];
+	
 	private $array = [];
 	private $iterator = 0;
 
 	public function __construct(DataSource $dataSource, array $settings = null, array $relations = []) {
 		$this->dataSource = $dataSource;
-		if ($settings) $this->settings = $settings;
-		if ($relations) $this->relations = $relations;
+		if ($settings) $this->settings = array_replace($this->settings, $settings);
+		if ($relations) $this->relations = $relations;		
 	}
-
+	
 	public function addRelation($name, Relation $relation) {
 		$this->relations[$name] = $relation;
 	}
@@ -36,7 +37,7 @@ class Maphper implements \Countable, \ArrayAccess, \Iterator {
 	}
 
 	public function current() {
-		return $this->attachRelations($this->array[$this->iterator]);
+		return $this->wrap($this->array[$this->iterator]);
 	}
 		
 	public function key() {
@@ -59,7 +60,7 @@ class Maphper implements \Countable, \ArrayAccess, \Iterator {
 	
 	public function item($n) {
 		$this->rewind();
-		return isset($this->array[$n]) ? $this->attachRelations($this->array[$n]) : null;
+		return isset($this->array[$n]) ? $this->wrap($this->array[$n]) : null;
 	}
 	
 	public function offsetSet($offset, $value) {
@@ -78,7 +79,7 @@ class Maphper implements \Countable, \ArrayAccess, \Iterator {
 			if (empty($value->$key) && !is_array($filterValue)) $value->$key = $filterValue;
 		}
 		
-		$this->attachRelations($value);
+		$this->wrap($value);
 		$pk = $this->dataSource->getPrimaryKey();
 		if ($offset !== null) $value->{$pk[0]} = $offset;
 		$this->dataSource->save($value);		
@@ -95,32 +96,44 @@ class Maphper implements \Countable, \ArrayAccess, \Iterator {
 	public function offsetGet($offset) {
 		if (isset($offset)) {
 			if (count($this->dataSource->getPrimaryKey()) > 1) return new MultiPk($this, $offset, $this->dataSource->getPrimaryKey());
-			return $this->attachRelations($this->dataSource->findById($offset));
+			return $this->wrap($this->dataSource->findById($offset));
 		}
 		else {
-			$obj = $this->dataSource->createNew();
+			$obj = $this->createNew();
 			foreach ($this->dataSource->getPrimaryKey() as $k) $obj->$k = null;
-			return $this->attachRelations($obj);
+			return $this->wrap($obj);
 		}
 	}
+
+	public function createNew() {
+		return (is_callable($this->settings['resultClass'])) ? call_user_func($this->settings['resultClass']) : new $this->settings['resultClass'];
+	}
 	
-	private function attachRelations($object) {
+	private function wrap($object) {
 		if (!is_object($object)) return $object;
 		if (is_array($object)) {
-			foreach ($object as &$o) $this->attachRelations($o);
+			foreach ($object as &$o) $this->wrap($o);
 			return $object;
 		}
-		else {				
-			if (isset($object->__maphperRelationsAttached)) return $object;			
+		else {
+			if (isset($object->__maphperRelationsAttached)) return $object;
+			
+			$writeClosure = function($field, $value) {
+				$this->$field = $value;
+			};
+			$new = $this->createNew();
+			$write = $writeClosure->bindTo($new, $new);
+			foreach ($object as $key => $value) $write($key, $this->dataSource->processDates($value));
+			
 			foreach ($this->relations as $name => $relation) {
-				if (!isset($object->{$relation->field})) $object->{$relation->field} = null;
-				if ($relation->relationType == Relation::ONE) $object->$name = new Relation\One($relation, $object->{$relation->field});
-				else if ($relation->relationType == Relation::MANY) {	
-					$object->$name = $relation->mapper->filter([$relation->parentField => $object->{$relation->field}]);
+				if (!isset($new->{$relation->field})) $new->{$relation->field} = null;
+				if ($relation->relationType == Relation::ONE) $new->$name = new Relation\One($relation, $new->{$relation->field});
+				else if ($relation->relationType == Relation::MANY) {
+					$new->$name = $relation->mapper->filter([$relation->parentField => $new->{$relation->field}]);
 				}
-			}				
-			$object->__maphperRelationsAttached = $this;
-			return $object;
+			}
+			$new->__maphperRelationsAttached = $this;
+			return $new;
 		}
 	}
 

@@ -153,4 +153,12 @@ class SqliteAdapter implements DatabaseAdapter {
 			$this->pdo->query('ALTER TABLE ' . $table . ' ADD ' . $this->quote($key) . ' ' . $type);
 		}
 	}
+	
+	public function addIndex($table, array $fields) {
+		//TODO
+	}
+	
+	public function optimiseColumns($table) {
+		//TODO
+	}
 }

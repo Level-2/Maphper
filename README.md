@@ -383,9 +383,14 @@ $pdo = new PDO('mysql:dbname=maphpertest;host=127.0.0.1', 'username', 'password'
 $blogs = new \Maphper\DataSource\Database($pdo, 'blogs', 'id', ['editmode' => true]);
 ```
 
-This should ony be enabled during development. In production you should set this to false.
+n.b. `'editmode => true`' is shorthand for \Maphper\DataSoruce\Database::EDIT_STRUCTURE | \Maphper\DataSoruce\Database::EDIT_INDEX | \Maphper\DataSoruce\Database::EDIT_OPTIMISE;
 
-When editmode is set to true, the code 
+The available flags can be interchanged using bitwise or e.g `\Maphper\DataSoruce\Database::EDIT_STRUCTURE | \Maphper\DataSoruce\Database::EDIT_INDEX` will enable structure and index modification but will not allow column optimisation.
+
+The three options for `editmode` are:
+
+`\Maphper\DataSoruce\Database::EDIT_STRUCTURE` - When this is set, Maphper automatically creates tables that don't exist, creates columns when writing to properties that don't yet exist and changes data types on out-of-bounds columns:
+
 
 ```php
 $blog = new stdClass;
@@ -418,18 +423,16 @@ $blogs[] = $blog;
 
 This would issue an `ALTER TABLE` query and change the `title` colum to `varchar`. Similarly if a very long string was added as the title the column would be changed to `LONGBLOG`. This is all done on the fly and behind the scenes, as the developer you don't need to worry about the table structure at all.
 
-### Table creation caveats
-
-There are some things to note when using automatic table creation/modification
-
-- Maphper will never delete a column, even if you remove the data from every record
-- Maphper will never make a column type stricter. For example, if a column had a string it it but now only stores integers, maphper will never modify the column to `INT`
-
 
 ### Indexes
 
-Currently Maphper does not add indexes to tables however this feature is planned for a future release.
+`\Maphper\DataSoruce\Database::EDIT_INDEX` When this is set, Maphper will automatically add indexes to columns used in WHERE, ORDER and GROUP statements. If a mutli-column where is done, a multi-column index is also added.
 
+### Database optimisation
+
+`\Maphper\DataSoruce\Database::EDIT_OPTIMISE` when this is set, Maphper automatically periodically optimises database tables. For example, a column set to VARCHAR(255) where the longest entry is 7 characters will be changed to VARCHAR(7) or a VARCHAR(255) column that has 3 records with values 1,2,3 will be converted to INT(11). This will also automatically delete any columns that have NULL in every record.
+
+Currently optimisation happens once every 500 times the DataSource is created. In future versions this value will be configurable.
 
 Concrete classes for mapped objects
 -----------------------------------
@@ -460,11 +463,11 @@ class Product {
 ```
 
 
-You can instruct Maphper to use this class using the `resultClass` option in the `$options` array when creating the DataSource instance:
+You can instruct Maphper to use this class using the `resultClass` option in the `$options` array when creating the Maphper instance:
 
 ```php
-$dataSource = new \Maphper\DataSource\Database($pdo, 'product', 'id', ['resultClass' => 'Product']);
-$products = new \Maphper\Maphper($dataSource);
+$dataSource = new \Maphper\DataSource\Database($pdo, 'product', 'id');
+$products = new \Maphper\Maphper($dataSource, ['resultClass' => 'Product']);
 
 $product = $products[123];
 
@@ -524,7 +527,7 @@ class Product {
 In this case using:
 
 ```php
-$dataSource = new \Maphper\DataSource\Database($pdo, 'product', 'id', ['resultClass' => 'Product']);
+$dataSource = new \Maphper\Maphper($database, ['resultClass' => 'Product']);
 ```
 
 Will error, because when an instance of `Product` is constructed, Maphper isn't smart enough to guess that a `TaxCalculator` instance is required as a constructor argument. Instead, you can pass a closure that returns a fully constructed object:
@@ -533,7 +536,7 @@ Will error, because when an instance of `Product` is constructed, Maphper isn't 
 ```php
 $taxCalculator = new TaxCalculator;
 
-$dataSource = new \Maphper\DataSource\Database($pdo, 'product', 'id', ['resultClass' => function() use ($taxCalculator) {
+$dataSource = new \Maphper\Maphper($database, ['resultClass' => function() use ($taxCalculator) {
 	return new Product($taxCalculator);
 }]);
 ```
@@ -543,7 +546,7 @@ Alternatively if you want considerably more control over the dependencies you ca
 ```php
 $dice = new \Dice\Dice;
 
-$dataSource = new \Maphper\DataSource\Database($pdo, 'product', 'id', ['resultClass' => function() use ($dice) {
+$dataSource = new \Maphper\Maphper($database, ['resultClass' => function() use ($dice) {
 	return $dice->create('Product');
 }]);
 ````
