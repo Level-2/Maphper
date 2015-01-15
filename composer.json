@@ -1,0 +1,21 @@
+{
+    "name": "tombzombie/maphper",
+    "version": "1.0",
+    "description": "A lightweight ORM using the DataMapper pattern, creates database tables on the fly.",
+    "license": "BSD-2-Clause",
+    "homepage": "https://github.com/TomBZombie/Maphper",
+    "keywords": ["orm", "data mapper", "object relational mapper", "dba", "model"],
+    "minimum-stability": "dev",
+    "authors": [
+    	{
+    		"name": "Tom Butler",
+    		"email": "tom@r.je"
+    	}
+    ],
+    "require": {
+        "php": ">=5.4.0"
+    },
+    "autoload": {
+    	"classmap": ["maphper/"]
+    }
+}
