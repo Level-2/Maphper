@@ -4,7 +4,6 @@ class Database implements \Maphper\DataSource {
 	const EDIT_STRUCTURE = 1;
 	const EDIT_INDEX = 2;
 	const EDIT_OPTIMISE = 4;
-	const EDIT_ALL = self::EDIT_STRUCTURE | self::EDIT_INDEX | self::EDIT_OPTIMISE;
 	
 	private $table;
 	private $cache = [];
@@ -27,7 +26,7 @@ class Database implements \Maphper\DataSource {
 
 		$this->defaultSort = (isset($options['defaultSort'])) ? $options['defaultSort'] : implode(', ', $this->primaryKey);
 
-		if (isset($options['editmode'])) $this->alterDb = $options['editmode'] == true ? self::EDIT_ALL : $options['editmode'];
+		if (isset($options['editmode'])) $this->alterDb = $options['editmode'] == true ? self::EDIT_STRUCTURE | self::EDIT_INDEX | self::EDIT_OPTIMISE : $options['editmode'];
 
 		if (self::EDIT_OPTIMISE & $this->alterDb && rand(0,500) == 1) $this->adapter->optimiseColumns($table);
 	}
