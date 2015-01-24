@@ -30,8 +30,15 @@ class Maphper implements \Countable, \ArrayAccess, \Iterator {
 	
 	public function addRelation($name, Relation $relation) {
 		$this->relations[$name] = $relation;
+		if ($relation->relationType == Relation::MANY_MANY) {
+			$relation->mapper[0]->addRelation($name, new Relation(Relation::ONE, $relation->mapper[1], $relation->parentField, $relation->field));
+			$relation->mapper = $relation->mapper[0];
+		}
 	}
 
+	public function getRelations() {
+		return $this->relations;
+	}
 	public function count($group = null) {
 		return $this->dataSource->findAggregate('count', $group == null ? $this->dataSource->getPrimaryKey() : $group, $group, $this->settings['filter']);
 	}
@@ -66,7 +73,7 @@ class Maphper implements \Countable, \ArrayAccess, \Iterator {
 	public function offsetSet($offset, $value) {
 		foreach ($this->relations as $name => $relation) {
 			//If a new object has been overridden
-			if (!($value->$name instanceof Relation\One) && !($value->$name instanceof Maphper)) {
+			if (isset($value->$name) && (!($value->$name instanceof Relation\One) && !($value->$name instanceof Maphper))) {
 				//Save the updated instance
 				$relation->mapper[] = $value->$name;
 				//And write the PK back into the parent object
@@ -128,9 +135,9 @@ class Maphper implements \Countable, \ArrayAccess, \Iterator {
 			foreach ($this->relations as $name => $relation) {
 				if (!isset($new->{$relation->field})) $new->{$relation->field} = null;
 				if ($relation->relationType == Relation::ONE) $new->$name = new Relation\One($relation, $new->{$relation->field});
-				else if ($relation->relationType == Relation::MANY) {
-					$new->$name = $relation->mapper->filter([$relation->parentField => $new->{$relation->field}]);
-				}
+				else if ($relation->relationType == Relation::MANY_MANY) $new->$name = new Relation\ManyMany($relation, $name, $object);
+				else if ($relation->relationType == Relation::MANY) $new->$name = $relation->mapper->filter([$relation->parentField => $new->{$relation->field}]);
+				
 			}
 			$new->__maphperRelationsAttached = $this;
 			return $new;

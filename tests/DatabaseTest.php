@@ -636,7 +636,131 @@ class DatabaseTest extends PHPUnit_Framework_TestCase {
 		$this->assertEquals('ten', $result['title']);
 	}
 
-
+	public function testIndexCreation() {
+		$this->dropTable('blog');
+		$this->populateBlogs();
+	
+		$mapper = new \Maphper\Maphper($this->getDataSource('blog', 'id', ['editmode' => true]));
+	
+	
+		//Check there is no index on the field already
+		$result = $this->pdo->query('SHOW INDEX FROM blog WHERE Column_name = "title"')->fetchAll();
+		$this->assertEquals(0, count($result));
+		//Do a lookup on the title field to trigger an index creation on it
+		$blogs = $mapper->filter(['title' => 'blog number 4']);
+		foreach ($blogs as $blog) {
+	
+		}
+	
+		$result = $this->pdo->query('SHOW INDEX FROM blog WHERE Column_name = "title"')->fetchAll();
+		$this->assertEquals(1, count($result));
+	}
+	
+	
+	public function testIndexCreationSort() {
+		$this->dropTable('blog');
+		$this->populateBlogs();
+	
+		$mapper = new \Maphper\Maphper($this->getDataSource('blog', 'id', ['editmode' => true]));
+	
+	
+		//Check there is no index on the field already
+		$result = $this->pdo->query('SHOW INDEX FROM blog WHERE Column_name = "title"')->fetchAll();
+		$this->assertEquals(0, count($result));
+			
+			
+		$blogs = $mapper->sort('title desc');
+		$blogs->rewind();
+		$blog = $blogs->current();
+		$this->assertEquals($blog->title, 'blog number 9');
+	
+		$result = $this->pdo->query('SHOW INDEX FROM blog WHERE Column_name = "title"')->fetchAll();
+		$this->assertEquals(1, count($result));
+	}
+	
+	public function testCountEmpty() {
+		$this->dropTable('test');
+		$test =  new \Maphper\Maphper($this->getDataSource('test', 'id', ['editmode' => true]));
+	
+		$this->assertEquals(0, count($test));
+	}
+	
+	private function setUpMoviesActors() {
+		$actorNames = ['Actor 1', 'Actor 2', 'Actor 3'];
+		$movieNames = ['Movie 1', 'Movie 2', 'Movie 3'];
+		$this->dropTable('actor');
+		$this->dropTable('movie');
+		$this->dropTable('cast');
+	
+		$actors = new \Maphper\Maphper($this->getDataSource('actor', 'id', ['editmode' => true]));
+		foreach ($actorNames as $actorName) {
+			$actor = new stdclass;
+			$actor->name = $actorName;
+			$actors[] = $actor;
+		}
+	
+		$movies = new \Maphper\Maphper($this->getDataSource('movie', 'id', ['editmode' => true]));
+		foreach ($movieNames as $movieName) {
+			$movie = new stdclass;
+			$movie->title = $movieName;
+			$movies[] = $movie;
+		}
+	
+		$cast = new \Maphper\Maphper($this->getDataSource('cast', ['movieId', 'actorId'], ['editmode' => true]));
+	
+		$actors->addRelation('movies', new \Maphper\Relation(\Maphper\Relation::MANY_MANY, [$cast, $movies], 'id', 'movieId'));
+		$movies->addRelation('actors', new \Maphper\Relation(\Maphper\Relation::MANY_MANY, [$cast, $actors], 'id', 'actorId'));
+	
+		return [$actors, $movies, $cast];
+	}
+	
+	public function testManyManySave() {
+		//Add some actors and movies
+	
+			
+		list($actors, $movies, $cast) = $this->setUpMoviesActors();
+	
+		$this->assertTrue(count($actors) > 0);
+		$this->assertTrue(count($movies) > 0);
+	
+	
+		$this->assertEquals(0, count($cast));
+	
+	
+		//Add a movie to an actor
+		$actors[1]->movies[] = $movies[3];
+		$this->assertEquals(1, count($actors[1]->movies));
+	
+		$actors[1]->movies[] = $movies[2];
+		$this->assertEquals(2, count($actors[1]->movies));
+	
+		$this->assertNotEquals(0, count($cast));
+	}
+	
+	
+	public function testManyManyGet() {
+		list($actors, $movies, $cast) = $this->setUpMoviesActors();
+	
+		$this->assertTrue(count($actors) > 0);
+		$this->assertTrue(count($movies) > 0);
+	
+	
+		$this->assertEquals(0, count($cast));
+	
+	
+		//Add a movie to an actor
+	
+		$actors[1]->movies[] = $movies[2];
+		$actors[1]->movies[] = $movies[3];
+	
+		$this->assertNotEquals(0, count($cast));
+	
+		$this->assertNotEquals(0, count($actors[1]->movies));
+	
+		$this->assertEquals($actors[1]->movies->item(0)->title, 'Movie 2');
+		$this->assertEquals($actors[1]->movies->item(1)->title, 'Movie 3');
+	
+	}
 }
 
 class Blog {
