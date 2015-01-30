@@ -9,11 +9,11 @@ class ManyMany implements \Iterator, \ArrayAccess, \Countable, \Maphper\Relation
 	private $otherInfo;
 	private $relatedMapper;
 	private $intermediateMapper;
-	private $autoTraverse = false;
+	private $autoTraverse = true;
 	private $object;
 	private $intermediateName;
 	
-	public function __construct(\Maphper\Maphper $intermediateMapper, \Maphper\Maphper $relatedMapper, $localField, $parentField, $autoTraverse = false, $intermediateName = null) {
+	public function __construct(\Maphper\Maphper $intermediateMapper, \Maphper\Maphper $relatedMapper, $localField, $parentField, $autoTraverse = true, $intermediateName = null) {
 		$this->intermediateMapper = $intermediateMapper;
 		$this->relatedMapper = $relatedMapper;
 		$this->localField = $localField;
@@ -57,7 +57,9 @@ class ManyMany implements \Iterator, \ArrayAccess, \Countable, \Maphper\Relation
 	}
 	
 	public function current() {
-		return $this->results[$this->iterator]->{$this->intermediateName};
+		$result = $this->results[$this->iterator];
+		if ($this->autoTraverse) return $result->{$this->intermediateName};
+		else return $result;
 	}
 	
 	public function key() {
@@ -71,7 +73,10 @@ class ManyMany implements \Iterator, \ArrayAccess, \Countable, \Maphper\Relation
 	public function item($i) {
 		if (empty($this->results)) $this->rewind();
 		if (!isset($this->results[$i])) throw new Exception('Item does not exist');
-		else return $this->results[$i]->{$this->intermediateName};
+		else {
+			if ($this->autoTraverse) return $this->results[$i]->{$this->intermediateName};
+			else return $this->results[$i];
+		}
 	}
 	
 	public function valid() {
@@ -97,14 +102,22 @@ class ManyMany implements \Iterator, \ArrayAccess, \Countable, \Maphper\Relation
 	}
 	
 	public function offsetSet($name, $value) {	
-		list($relatedField, $valueField) = $this->getOtherFieldNameInfo();
-		$record = new \stdClass;
-		$record->{$this->parentField} =  $value->$relatedField;
-		$record->$valueField = $this->object->{$this->localField};
-		$this->intermediateMapper[] = $record;		
+		list($relatedField, $valueField, $mapper) = $this->getOtherFieldNameInfo();
+		if ($this->autoTraverse) {
+			$record = new \stdClass;		
+			$record->{$this->parentField} =  $value->{$this->localField};
+			$record->$valueField = $this->object->{$relatedField};
+			$this->intermediateMapper[] = $record;
+		}
+		else {
+			$record = $value;
+			$record->{$this->parentField} = $value->{$this->intermediateName}->{$this->localField};
+			$record->$valueField = $this->object->{$relatedField};			
+			$this->intermediateMapper[] = $record;
+		}		
 	}
 	
 	public function offsetUnset($id) {
-		$this->relation->mapper->filter([$relatedField => $this->object->$valueField, $this->relation->parentField => $id])->delete();
+		//$this->relation->mapper->filter([$relatedField => $this->object->$valueField, $this->relation->parentField => $id])->delete();
 	}
 }
