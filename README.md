@@ -551,3 +551,182 @@ $dataSource = new \Maphper\Maphper($database, ['resultClass' => function() use (
 }]);
 ````
 
+
+
+## Many to Many relationships
+
+Consider tables `movie` and `actor` an actor can be in more than one movie and a movie has more than one actor it's impossible to model the relationship with just two tables using primary/foregin keys.
+
+In relational databases (and Maphper) this requires an intermediate table that stores tha `actorId` and the `movieId`.
+
+To model this relationship using Maphper first set up the standard `actor` and `movie` mappers:
+
+```php
+$actors = new \Maphper\Maphper(new \Maphper\Datasource\Database($pdo, 'actor', 'id'));
+$movies = new \Maphper\Maphper(new \Maphper\Datasource\Database($pdo, 'actor', 'id'));
+```
+
+Then add a table for the intermediate table. Note this requires two primary keys, one for the `actorId` and one for the `movieId`
+
+```php
+$cast = new \Maphper\Maphper(new \Maphper\Datasource\Database($pdo, 'cast', ['movieId', 'actorId']));
+```
+
+*Note that Maphper can, of course, create this table for you with editmode turned on*
+
+Now it's possible to set up Many to Many relationships using the `\Maphper\Relation\ManyMany` class as the relationship. Firstly for the actor to movie relationship:
+
+```php
+$actors->addRelation('movies', new \Maphper\Relation\ManyMany($cast, $movies, 'id', 'movieId'));
+```
+
+This creates a relationship on `actor` objects called `movies`. 
+
+The first constructor argument for the ManyMany class is the intermediate table. 
+
+The second constructor argument is the table being mapped to. 
+
+The third is the primary key of the `movies` table.
+
+The fourth is the key in the intermeidate table.
+
+This joins the $actors mapper to the $cast mapper and then the $cast mapper to the $movies mapper.
+
+Once this is done, you can also set up the inverse relationship, mapping movies to the actors that starred in them in the same way:
+
+```php
+$movies->addRelation('actors', new \Maphper\Relation\ManyMany($cast, $actors, 'id', 'actorId'));
+```
+
+
+Once both of these relationships are set up you can add an actor with movies:
+
+```php
+
+$actor = new \stdclass;
+$actor->id = 123;
+$actor->name = 'Samuel L. Jackson';
+
+//save the actor
+$actors[] = $actor;
+
+
+//now add some movies to the actor
+$movie1 = new \stdclass;
+$movie1->title = 'Pulp Fiction';
+
+$actor->movies[] = $movie1;
+
+
+//now add some movies to the actor
+$movie2 = new \stdclass;
+$movie2->title = 'Snakes on a Plane';
+
+$actor->movies[] = $movie2;
+
+```
+
+once this is done you can get all movies played by an actor using:
+
+```php
+
+$actor = $actors[123];
+
+echo $actor->name . ' was in the movies:' . "\n";
+
+foreach ($actor->movies as $movie) {
+	echo $movie->title . "\n";
+}
+``` 
+
+Which will print:
+
+```
+Samuel L. Jackson was in the movies:
+Pulp Fiction
+Snakes on a Plane
+```
+
+Of course that's possible with a normal one to many relationship. A many to many relationship is only useful when there are more actors:
+
+
+```php
+$actor = new \stdclass;
+$actor->id = 124;
+$actor->name = 'John Travolta';
+$actors[] = $actor;
+
+//Find the movie 'Pulp Fiction and add it to John Travolta
+$movie = $movies->filter(['title' =>'Pulp Fiction'])->item(0);
+$actor->movies[] = $movie;
+
+```
+
+Now it's possible to find all the actors who were in Pulp Fiction using:
+
+
+```php
+$movie = $movies->filter(['title' =>'Pulp Fiction'])->item(0);
+
+echo 'The actors in ' . $movie->title . ' are :' . "\n";
+foreach ($movie->actors as $actor) {
+	echo $actor->name . "\n";
+}
+```
+
+Which prints
+
+```
+The actors in Pulp Fiction are:
+Samuel L. Jackson
+John Travolta
+```
+
+
+
+
+### Storing data in the intermediate table
+
+Sometimes it's useful to store extra information in the intermediate table. In the example above, it would be nice to know the name of the character the actor played in a given movie. For this, there are two extra fields used when setting up the relationship.
+
+Instead of 
+
+```php
+$actors->addRelation('movies', new \Maphper\Relation\ManyMany($cast, $movies, 'id', 'movieId'));
+$movies->addRelation('actors', new \Maphper\Relation\ManyMany($cast, $actors, 'id', 'actorId'));
+```
+
+You can use:
+
+```
+$actors->addRelation('roles', new \Maphper\Relation\ManyMany($cast, $movies, 'id', 'movieId', false, 'movie');
+$movies->addRelation('cast', new \Maphper\Relation\ManyMany($cast, $actors, 'id', 'actorId', false, 'actor');
+```
+
+The 5th and 6 arguments to the `\Maphper\Relation\ManyMany` constructor have been added/
+
+Argument 5 is a boolean variable that tells mapper to skip the intermediate table. Setting this to false means that you can access fields from the intermediate table.
+
+Argument 6 is the name of the field to use on objects from the intermediate table.
+
+In this example, I have assiged actors `roles` and movies `cast`. Now that this is set up I can use them like so:
+
+```
+$actor = $actors[123];
+
+echo $actor->name . ' has the roles:' . "\n"
+foreach ($actors[123]->roles as $role) {
+    echo $role->characterName . ' in the movie . ' . $role->movie->title . "\n";
+}
+```
+
+Which will print out:
+
+```
+Samuel L. Jackson has the roles:
+Jules Winnfield in Pulp Fiction
+Neville Flynn in Snakes on a plane
+```
+
+
+#### *Todo: include docs on how to set the character name*
