@@ -30,10 +30,6 @@ class Maphper implements \Countable, \ArrayAccess, \Iterator {
 	
 	public function addRelation($name, Relation $relation) {
 		$this->relations[$name] = $relation;
-		if ($relation->relationType == Relation::MANY_MANY) {
-			$relation->mapper[0]->addRelation($name, new Relation(Relation::ONE, $relation->mapper[1], $relation->parentField, $relation->field));
-			$relation->mapper = $relation->mapper[0];
-		}
 	}
 
 	public function getRelations() {
@@ -72,13 +68,8 @@ class Maphper implements \Countable, \ArrayAccess, \Iterator {
 	
 	public function offsetSet($offset, $value) {
 		foreach ($this->relations as $name => $relation) {
-			//If a new object has been overridden
-			if (isset($value->$name) && (!($value->$name instanceof Relation\One) && !($value->$name instanceof Maphper))) {
-				//Save the updated instance
-				$relation->mapper[] = $value->$name;
-				//And write the PK back into the parent object
-				$value->{$relation->field} = $value->{$name}->{$relation->parentField};
-			}
+			//If a relation has been overridden
+			if (isset($value->$name) && (!($value->$name instanceof Relation\One))) $relation->overwrite($value, $value->$name);
 		}
 
 		foreach ($this->settings['filter'] as $key => $filterValue) {
@@ -132,13 +123,8 @@ class Maphper implements \Countable, \ArrayAccess, \Iterator {
 			$write = $writeClosure->bindTo($new, $new);
 			foreach ($object as $key => $value) $write($key, $this->dataSource->processDates($value));
 			
-			foreach ($this->relations as $name => $relation) {
-				if (!isset($new->{$relation->field})) $new->{$relation->field} = null;
-				if ($relation->relationType == Relation::ONE) $new->$name = new Relation\One($relation, $new->{$relation->field});
-				else if ($relation->relationType == Relation::MANY_MANY) $new->$name = new Relation\ManyMany($relation, $name, $object);
-				else if ($relation->relationType == Relation::MANY) $new->$name = $relation->mapper->filter([$relation->parentField => $new->{$relation->field}]);
-				
-			}
+			foreach ($this->relations as $name => $relation) $new->$name = $relation->getData($new); 
+
 			$new->__maphperRelationsAttached = $this;
 			return $new;
 		}

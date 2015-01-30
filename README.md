@@ -211,17 +211,17 @@ This is a one-to-one relationship (one blog has one author) and can be achieved 
 
 ```php
 //Create a one-to-one relationship between blogs and authors (a blog can only have one author)
-$relation = new \Maphper\Relation(\Maphper\Relation::ONE, $authors, 'authorId', 'id');
+$relation = new \Maphper\Relation\One($authors, 'authorId', 'id');
 $blogs->addRelation('author', $relation);
 ```
 
-\Maphper\Relation::ONE tells Maphper that it's a one-to-one relationship
+Using an instance of \Maphper\Relation\One tells Maphper that it's a one-to-one relationship
 
-The second parameter, $authors tells Maphper that the relationship is to the $authors mapper (in this case, the author database table, although you can define relationships between different data types)
+The first parameter, `$authors` tells Maphper that the relationship is to the `$authors` mapper (in this case, the author database table, although you can define relationships between different data sources)
 
-'authorId' is the field in the blog table that's being joined from
+`authorId` is the field in the blog table that's being joined from
 
-'id' is the field in the author table that's being joined to
+`id` is the field in the author table that's being joined to
 
 After the relation is constructed it can be added to the blog mapper using:
 
@@ -247,11 +247,11 @@ Similarly, you can define the inverse relation between authors and blogs. This i
 ```php
 //Create a one-to-many relationship between blogs and authors (an author can have multiple blog entries)
 //Joining from the 'id' field in the authors mapper to the 'authorId' field in the blogs mapper
-$relation = new \Maphper\Relation(\Maphper\Relation::MANY, $blogs, 'id', 'authorId');
+$relation = new \Maphper\Relation\Many($blogs, 'id', 'authorId');
 $authors->addRelation('blogs', $relation);
 ```
 
-This is creating a relationship between the `$authors` and `$blogs` mappers using the `id` field in the `$authors` mapper to the `authorId` field in the `$blogs` mapper and making a `blogs` property available for any object returned by the `$authors` mapper.
+This is creating a One:Many relationship between the `$authors` and `$blogs` mappers using the `id` field in the `$authors` mapper to the `authorId` field in the `$blogs` mapper and making a `blogs` property available for any object returned by the `$authors` mapper.
 
 ```php
 //Count all the blogs by the author with id 4
@@ -272,7 +272,7 @@ Once you have created your mappers and defined the relationships between them, y
 ```php
 $authors = new \Maphper\Maphper(new \Maphper\DataSource\Database($pdo, 'author'));
 $blogs = new \Maphper\Maphper(new \Maphper\DataSource\Database($pdo, 'blog', 'id'));
-$blogs->addRelation('author', new \Maphper\Relation(\Maphper\Relation::ONE, $authors, 'authorId', 'id'));
+$blogs->addRelation('author', new \Maphper\Relation\One($authors, 'authorId', 'id'));
 
 
 $blog = new stdClass;
@@ -294,7 +294,7 @@ You can also do the same with one-to-many relationships:
 $authors = new \Maphper\Maphper(new \Maphper\DataSource\Database($pdo, 'author'));
 $blogs = new \Maphper\Maphper(new \Maphper\DataSource\Database($pdo, 'blog', 'id'))
 
-$authors->addRelation('blogs', new \Maphper\Relation(\Maphper\Relation::MANY, $blogs, 'id', 'authorId'));
+$authors->addRelation('blogs', new \Maphper\Relation\Many($blogs, 'id', 'authorId'));
 
 
 //Find the author with id 4
