@@ -125,17 +125,23 @@ class MySqlAdapter implements DatabaseAdapter {
 		}
 	}
 	
+	public function lastInsertId() {
+		return $this->pdo->lastInsertId();
+	}
+	
 	public function addIndex($table, array $fields) {
 		//Sort the fields so that the index is never created twice (col1, col2) then (col2, col1)
 		sort($fields);
 		$fields = array_map('strtolower', $fields);
 		$fields = array_map('trim', $fields);
 		$keyName = $this->quote(implode('_', $fields));
-		$results = $this->pdo->query('SHOW INDEX FROM ' . $this->quote($table) . ' WHERE Key_Name = "' . $keyName . '"')->fetchAll();
-		if (count($results) == 0)  $this->pdo->query('CREATE INDEX ' . $keyName . ' ON ' . $this->quote($table) . '(' . implode(', ', $fields) . ')');
+		
+		$results = $this->pdo->query('SHOW INDEX FROM ' . $this->quote($table) . ' WHERE Key_Name = "' . $keyName . '"');
+		if ($results && count($results->fetchAll()) == 0)  $this->pdo->query('CREATE INDEX ' . $keyName . ' ON ' . $this->quote($table) . '(' . implode(', ', $fields) . ')');
 	}
 	
 	public function optimiseColumns($table) {
+		$runAgain = false;
 		$columns = $this->pdo->query('SELECT * FROM '. $this->quote($table) . ' PROCEDURE ANALYSE(1,1)')->fetchAll(\PDO::FETCH_OBJ);
 		foreach ($columns as $column) {
 			$name = $this->quote(end((explode('.', $column->Field_name))));
@@ -145,18 +151,34 @@ class MySqlAdapter implements DatabaseAdapter {
 				if ($column->Max_length < 11) {
 					//Check for dates
 					$count = $this->pdo->query('SELECT count(*) as `count` FROM ' . $this->quote($table) . ' WHERE STR_TO_DATE(' . $name . ',\'%Y-%m-%d %H:%i:s\') IS NULL OR STR_TO_DATE(' . $name . ',\'%Y-%m-%d %H:%i:s\') != ' . $name . ' LIMIT 1')->fetch(\PDO::FETCH_OBJ)->count;
-					if ($count == 0) $type = 'DATETIME';
-					
-					//See if it's numeric
-					$count = $this->pdo->query('SELECT count(*) FROM ' . $this->table . ' WHERE concat(\'\', ' . $name . ' * 1) != ABS(' . $name . ')) LIMIT 1')->fetch(\PDO::FETCH_OBJ)->count;
-					if ($count == 0) $type = 'INT(11)';
+					if ($count == 0) $type = 'DATETIME';					
 					
 					$count = $this->pdo->query('SELECT count(*) as `count` FROM ' . $this->quote($table) . ' WHERE STR_TO_DATE(' . $name . ',\'%Y-%m-%d\') IS NULL OR STR_TO_DATE(' . $name . ',\'%Y-%m-%d\') != ' . $name . ' LIMIT 1')->fetch(\PDO::FETCH_OBJ)->count;
-					if ($count == 0) $type = 'DATE';
+					if ($count == 0) $type = 'DATE';					
+				}
+				
+				//If it's text, work out if it would be better to be something else
+				if (strpos($type, 'VARCHAR') !== false || strpos($type, 'CHAR') !== false || strpos($type, 'BINARY') !== false || strpos($type, 'BLOB') !== false || strpos($type, 'TEXT') !== false) {
+					//See if it's an int
+					$count = $this->pdo->query('SELECT count(*) FROM ' . $this->table . ' WHERE concat(\'\', ' . $name . ' * 1) != ABS(' . $name . ')) LIMIT 1')->fetch(\PDO::FETCH_OBJ)->count;
+					if ($count == 0) {
+						$type = 'INT(11)';
+						$runAgain = true;
+					}
+					else {
+						//See if it's decimal
+						$count = $this->pdo->query('SELECT count(*) FROM ' . $this->table . ' WHERE concat(\'\', ' . $name . ' * 1) != ' . $name . ')')->fetch(\PDO::FETCH_OBJ)->count;
+						if ($count == 0) {
+							$type = 'DECIMAL(64,64)';
+							$runAgain = true;
+						}
+					}
 				}				
+				
 				$this->pdo->query('ALTER TABLE ' . $this->quote($table) . ' MODIFY '. $name . ' ' . $type);				
-			}
-			
+			}			
 		}
+		//Sometimes a second pass is needed, if a column has gone from varchar -> int(11) a better int type may be needed
+		if ($runAgain) $this->optimiseColumns($table);
 	}
 }

@@ -106,6 +106,10 @@ class SqliteAdapter implements DatabaseAdapter {
 		}
 	}
 	
+	public function lastInsertId() {
+		return $this->pdo->lastInsertId();
+	}
+	
 	private function getType($val) {
 		if ($val instanceof \DateTime) return 'DATETIME';
 		else if (is_int($val)) return  'INTEGER';

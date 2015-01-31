@@ -17,8 +17,7 @@ class Maphper implements \Countable, \ArrayAccess, \Iterator {
 	
 	private $dataSource;
 	private $relations = [];	
-	private $settings = ['filter' => [], 'sort' => null, 'limit' => null, 'offset' => null, 'resultClass' => '\\stdClass'];
-	
+	private $settings = ['filter' => [], 'sort' => null, 'limit' => null, 'offset' => null, 'resultClass' => '\\stdClass'];	
 	private $array = [];
 	private $iterator = 0;
 
@@ -68,8 +67,8 @@ class Maphper implements \Countable, \ArrayAccess, \Iterator {
 	
 	public function offsetSet($offset, $value) {
 		foreach ($this->relations as $name => $relation) {
-			//If a relation has been overridden
-			if (isset($value->$name) && (!($value->$name instanceof Relation\One))) $relation->overwrite($value, $value->$name);
+			//If a relation has been overridden, run the overwrite	
+			if (isset($value->$name) &&	!($value->$name instanceof Relation\One)) $relation->overwrite($value, $value->$name);			
 		}
 
 		foreach ($this->settings['filter'] as $key => $filterValue) {
@@ -77,7 +76,8 @@ class Maphper implements \Countable, \ArrayAccess, \Iterator {
 			if (empty($value->$key) && !is_array($filterValue)) $value->$key = $filterValue;
 		}
 		
-		$this->wrap($value);
+		$value = $this->wrap($value, true);
+		
 		$pk = $this->dataSource->getPrimaryKey();
 		if ($offset !== null) $value->{$pk[0]} = $offset;
 		$this->dataSource->save($value);		
@@ -93,7 +93,7 @@ class Maphper implements \Countable, \ArrayAccess, \Iterator {
 
 	public function offsetGet($offset) {
 		if (isset($offset)) {
-			if (count($this->dataSource->getPrimaryKey()) > 1) return new MultiPk($this, $offset, $this->dataSource->getPrimaryKey());
+			if (count($this->dataSource->getPrimaryKey()) > 1) return new MultiPk($this, $offset, $this->dataSource->getPrimaryKey());			
 			return $this->wrap($this->dataSource->findById($offset));
 		}
 		else {
@@ -107,22 +107,19 @@ class Maphper implements \Countable, \ArrayAccess, \Iterator {
 		return (is_callable($this->settings['resultClass'])) ? call_user_func($this->settings['resultClass']) : new $this->settings['resultClass'];
 	}
 	
-	private function wrap($object) {
-		if (!is_object($object)) return $object;
+	private function wrap($object, $updateExisting = false) {		
 		if (is_array($object)) {
 			foreach ($object as &$o) $this->wrap($o);
 			return $object;
 		}
+		else if (!is_object($object)) return $object;
 		else {
-			if (isset($object->__maphperRelationsAttached)) return $object;
+			if (isset($object->__maphperRelationsAttached)) return $object;			
+			$writeClosure = function($field, $value) {	$this->$field = $value;	};
 			
-			$writeClosure = function($field, $value) {
-				$this->$field = $value;
-			};
-			$new = $this->createNew();
+			$new = $updateExisting ? $object : $this->createNew();
 			$write = $writeClosure->bindTo($new, $new);
-			foreach ($object as $key => $value) $write($key, $this->dataSource->processDates($value));
-			
+			foreach ($object as $key => $value) $write($key, $this->dataSource->processDates($value));			
 			foreach ($this->relations as $name => $relation) $new->$name = $relation->getData($new); 
 
 			$new->__maphperRelationsAttached = $this;

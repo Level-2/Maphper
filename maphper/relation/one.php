@@ -42,7 +42,7 @@ class One implements \Maphper\Relation {
 	}
 	
 	
-	public function overwrite($parentObject, $data) {
+	public function overwrite($parentObject, &$data) {
 		$this->mapper[] = $data;
 		$parentObject->{$this->parentField} = $data->{$this->localField};
 	}

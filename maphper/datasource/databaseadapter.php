@@ -8,5 +8,5 @@ interface DatabaseAdapter {
 	public function insert($table, array $primaryKey, $data);
 	public function alterDatabase($table, array $primaryKey, $data);
 	public function addIndex($table, array $fields);
-	public function optimiseColumns($table);
+	public function lastInsertId();
 }

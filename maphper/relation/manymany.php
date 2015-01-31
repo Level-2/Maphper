@@ -1,7 +1,6 @@
 <?php 
 namespace Maphper\Relation;
 class ManyMany implements \Iterator, \ArrayAccess, \Countable, \Maphper\Relation {
-	//private $relation;
 	private $results;
 	private $localField;
 	private $parentField;
@@ -9,16 +8,16 @@ class ManyMany implements \Iterator, \ArrayAccess, \Countable, \Maphper\Relation
 	private $otherInfo;
 	private $relatedMapper;
 	private $intermediateMapper;
-	private $autoTraverse = true;
+	private $autoTraverse = false;
 	private $object;
 	private $intermediateName;
 	
-	public function __construct(\Maphper\Maphper $intermediateMapper, \Maphper\Maphper $relatedMapper, $localField, $parentField, $autoTraverse = true, $intermediateName = null) {
+	public function __construct(\Maphper\Maphper $intermediateMapper, \Maphper\Maphper $relatedMapper, $localField, $parentField, $intermediateName = null) {
 		$this->intermediateMapper = $intermediateMapper;
 		$this->relatedMapper = $relatedMapper;
 		$this->localField = $localField;
 		$this->parentField = $parentField;
-		$this->autoTraverse = $autoTraverse;
+		$this->autoTraverse = $intermediateName ? false : true;
 		$this->intermediateName = $intermediateName ?: 'rel_' . $parentField;
 		$this->intermediateMapper->addRelation($this->intermediateName, new One($this->relatedMapper, $parentField, $localField));
 		
@@ -29,8 +28,9 @@ class ManyMany implements \Iterator, \ArrayAccess, \Countable, \Maphper\Relation
 		return clone $this;	
 	}
 	
-	public function overwrite($parentObject, $data) {
-		//TODO	
+	public function overwrite($parentObject, &$data) {
+		$this->object = $parentObject;
+		foreach ($data as $d) $this[] = $d;
 	}
 	
 	//bit hacky, breaking encapsulation, but simplest way to work out the info for the other side of the many:many relationship.

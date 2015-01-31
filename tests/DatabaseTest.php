@@ -689,14 +689,14 @@ class DatabaseTest extends PHPUnit_Framework_TestCase {
 		$this->dropTable('movie');
 		$this->dropTable('cast');
 		
-		$actors = new \Maphper\Maphper($this->getDataSource('actor', 'id', ['editmode' => true]));
+		$actors = new \Maphper\Maphper($this->getDataSource('actor', 'aid', ['editmode' => true]));
 		foreach ($actorNames as $actorName) {
 			$actor = new stdclass;
 			$actor->name = $actorName;
 			$actors[] = $actor;
 		}
 		
-		$movies = new \Maphper\Maphper($this->getDataSource('movie', 'id', ['editmode' => true]));
+		$movies = new \Maphper\Maphper($this->getDataSource('movie', 'mid', ['editmode' => true]));
 		foreach ($movieNames as $movieName) {
 			$movie = new stdclass;
 			$movie->title = $movieName;
@@ -705,8 +705,9 @@ class DatabaseTest extends PHPUnit_Framework_TestCase {
 		
 		$cast = new \Maphper\Maphper($this->getDataSource('cast', ['movieId', 'actorId'], ['editmode' => true]));
 		
-		$actors->addRelation('movies', new \Maphper\Relation\ManyMany($cast, $movies, 'id', 'movieId'));
-		$movies->addRelation('actors', new \Maphper\Relation\ManyMany($cast, $actors, 'id', 'actorId'));
+		$actors->addRelation('movies', new \Maphper\Relation\ManyMany($cast, $movies, 'mid', 'movieId'));
+		$movies->addRelation('actors', new \Maphper\Relation\ManyMany($cast, $actors, 'aid', 'actorId'));
+
 		
 		return [$actors, $movies, $cast];
 	}
@@ -760,6 +761,131 @@ class DatabaseTest extends PHPUnit_Framework_TestCase {
 		$this->assertEquals($actors[1]->movies->item(0)->title, 'Movie 2');
 		$this->assertEquals($actors[1]->movies->item(1)->title, 'Movie 3');
 	
+	}
+	
+	private function setupMoviesActorsReal() {
+		$cast = new \Maphper\Maphper($this->getDataSource('cast', ['movieId', 'actorId'], ['editmode' => true]));
+		$actors = new \Maphper\Maphper($this->getDataSource('actor', 'aid', ['editmode' => true]));
+		$movies = new \Maphper\Maphper($this->getDataSource('movie', 'mid', ['editmode' => true]));
+		
+		$actors->addRelation('roles', new \Maphper\Relation\ManyMany($cast, $movies, 'mid', 'movieId', 'movie'));
+		$movies->addRelation('cast', new \Maphper\Relation\ManyMany($cast, $actors, 'aid', 'actorId', 'actor'));
+		
+		return [$cast, $actors, $movies];
+	}
+	
+	
+	public function testManyManySaveIntermediate() {
+		$this->dropTable('actor');
+		$this->dropTable('movie');
+		$this->dropTable('cast');		
+		list ($cast, $actors, $movies) = $this->setupMoviesActorsReal();
+		
+		
+		$actor = new \stdClass;
+		//set a specific id so we can look it up later
+		$actor->aid = 123;
+		$actor->name = 'Samuel L. Jackson';		
+		//save the actor
+		$actors[] = $actor;
+		
+		$movie = new \stdclass;
+		$movie->mid = 8;
+		$movie->title = 'Pulp Fiction';	
+		
+		//save the movie
+		$movies[] = $movie;
+		
+		$role = new \stdClass;
+		$role->characterName = 'Jules Winnfield';
+		$role->movie = $movie;
+				
+	
+		$actor->roles[] = $role;
+
+		
+		$this->assertEquals(count($cast), 1);
+		
+		//Recreate mappers to clear caches
+		list ($cast, $actors, $movies) = $this->setupMoviesActorsReal();		
+		
+		$actor = $actors[123];
+		$this->assertEquals($actor->name, 'Samuel L. Jackson');
+		$this->assertEquals(count($actor->roles), 1);
+		
+		foreach ($actor->roles as $role) {
+			$this->assertEquals($role->characterName, 'Jules Winnfield');
+			$this->assertEquals($role->movie->title, 'Pulp Fiction');
+		}		
+	}
+	
+	
+	public function testManyManySaveIntermediateMultiple() {
+		$this->dropTable('actor');
+		$this->dropTable('movie');
+		$this->dropTable('cast');
+		list ($cast, $actors, $movies) = $this->setupMoviesActorsReal();
+		
+		
+		$actor = new \stdClass;
+		$actor->aid = 123;
+		$actor->name = 'Samuel L. Jackson';
+		
+		
+		
+		
+		$movie = new \stdclass;
+		$movie->title = 'Pulp Fiction';
+		$movies[] = $movie;		
+		
+		$this->assertNotEquals(null, $movie->mid);
+		
+		//Create a role
+		$role = new \stdClass;
+		//Set the character name for the role
+		$role->characterName = 'Jules Winnfield';
+		//Assign the movie to the role
+		$role->movie = $movie;
+		//Assign the role to the actor
+		$actor->roles[] = $role;
+		
+		
+
+		$movie = new \stdclass;
+		$movie->title = 'Snakes on a Plane';
+		$movies[] = $movie;
+		
+		
+		//Create a role
+		$role = new \stdClass;
+		//Set the character name for the role
+		$role->characterName = 'Neville Flynn';
+		//Assign the movie to the role
+		$role->movie = $movie;
+		//Assign the role to the actor
+		$actor->roles[] = $role;
+		
+		
+		//save the actor
+		$actors[] = $actor;
+		
+		
+		unset($actor);
+		list ($cast, $actors, $movies) = $this->setupMoviesActorsReal();
+		
+		$actor = $actors[123];
+		
+		$this->assertEquals($actor->name, 'Samuel L. Jackson');
+		$actor->roles->rewind();
+		
+		$role = $actor->roles->current();
+		$this->assertEquals('Jules Winnfield', $role->characterName);
+		$this->assertEquals('Pulp Fiction', $role->movie->title);
+		
+		$actor->roles->next();
+		$role = $actor->roles->current();
+		$this->assertEquals('Neville Flynn', $role->characterName);
+		$this->assertEquals('Snakes on a Plane', $role->movie->title);		
 	}
 }
 

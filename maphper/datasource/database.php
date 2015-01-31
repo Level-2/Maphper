@@ -48,7 +48,7 @@ class Database implements \Maphper\DataSource {
 	}
 		
 	public function processDates($obj) {
-		if (is_array($obj) || is_object($obj)) foreach ($obj as &$o) $o = $this->processDates($o);		
+		if (is_array($obj) || (is_object($obj) && (!$obj instanceof \Iterator))) foreach ($obj as &$o) $o = $this->processDates($o);
 		if (is_string($obj) && is_numeric($obj[0]) && strlen($obj) <= 20) {
 			try {
 				$date = new \DateTime($obj);
@@ -212,7 +212,10 @@ class Database implements \Maphper\DataSource {
 
 		$new = false;
 		foreach ($pk as $k) {
-			if (!isset($data->$k) || $data->$k == '') $data->$k = null;
+			if (!isset($data->$k) || $data->$k == '') {
+				$data->$k = null;
+				$new = true;
+			}
 		}		
 		//Extract private properties from the object
 		$readClosure = function() {
@@ -237,8 +240,8 @@ class Database implements \Maphper\DataSource {
 			else throw $e;
 		}		
 
-		//TODO: This will error if the primary key is a private field	
-		if ($new && count($this->primaryKey) == 1) $data->{$this->primaryKey} = $this->db->lastInsertId();
+		//TODO: This will error if the primary key is a private field
+		if ($new && count($this->primaryKey) == 1) $data->{$this->primaryKey[0]} = $this->adapter->lastInsertId();
 		//Something has changed, clear any cached results as they may now be incorrect
 		$this->resultCache = [];
 		$this->cache[$this->primaryKey[0]] = $data;

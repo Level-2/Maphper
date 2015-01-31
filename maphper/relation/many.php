@@ -17,7 +17,7 @@ class Many implements \Maphper\Relation {
 		return $this->mapper->filter([$this->localField => $parentObject->{$this->parentField}]);
 	}
 	
-	public function overwrite($key, $value) {
+	public function overwrite($key, &$value) {
 		//TODO
 	}
 }
