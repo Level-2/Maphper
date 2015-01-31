@@ -557,7 +557,7 @@ $dataSource = new \Maphper\Maphper($database, ['resultClass' => function() use (
 
 Consider tables `movie` and `actor` an actor can be in more than one movie and a movie has more than one actor it's impossible to model the relationship with just two tables using primary/foregin keys.
 
-In relational databases (and Maphper) this requires an intermediate table that stores tha `actorId` and the `movieId`.
+In relational databases (and Maphper) this requires an intermediate table that stores the `actorId` and the `movieId`.
 
 To model this relationship using Maphper first set up the standard `actor` and `movie` mappers:
 
@@ -698,20 +698,53 @@ $movies->addRelation('actors', new \Maphper\Relation\ManyMany($cast, $actors, 'i
 
 You can use:
 
+```php
+$actors->addRelation('roles', new \Maphper\Relation\ManyMany($cast, $movies, 'id', 'movieId', 'movie');
+$movies->addRelation('cast', new \Maphper\Relation\ManyMany($cast, $actors, 'id', 'actorId', 'actor');
 ```
-$actors->addRelation('roles', new \Maphper\Relation\ManyMany($cast, $movies, 'id', 'movieId', false, 'movie');
-$movies->addRelation('cast', new \Maphper\Relation\ManyMany($cast, $actors, 'id', 'actorId', false, 'actor');
+
+The 5th argument to the  `\Maphper\Relation\ManyMany` constructor have been added.
+
+This argument is the name of the field to use on objects from the intermediate table. When this is supplied, the intermediate mapper is not traversed automatically, instead it is accessed like a normal one:many relationship between the parent table (e.g. actors) and the intermediate table e.g. cast.
+
+In this example, actors have `roles` and movies have a `cast`. Now that this is set up it's possible to assign some roles to an actor:
+
+
+```php
+$actor = $actors[123];
+
+
+//Find the movie 
+$movie = $movies->filter(['title' =>'Pulp Fiction'])->item(0);
+
+//Create a role
+$role = new \stdClass;
+//Set the character name for the role
+$role->characterName = 'Jules Winnfield';
+//Assign the movie to the role
+$role->movie = $movie;
+//Assign the role to the actor
+$actor->roles[] = $role;
+
+
+//Find the movie 
+$movie = $movies->filter(['title' =>'Snakes on a Plane'])->item(0);
+//Create a role
+$role = new \stdClass;
+//Set the character name for the role
+$role->characterName = 'Neville Flynn';
+//Assign the movie to the role
+$role->movie = $movie;
+//Assign the role to the actor
+$actor->roles[] = $role;
+
+
 ```
 
-The 5th and 6 arguments to the `\Maphper\Relation\ManyMany` constructor have been added/
+This has assigned the movies Pulp Fiction and Snakes on a Plane to Samuel L. Jackson via the 'role' attribue. It's now possible to show the movies:
 
-Argument 5 is a boolean variable that tells mapper to skip the intermediate table. Setting this to false means that you can access fields from the intermediate table.
 
-Argument 6 is the name of the field to use on objects from the intermediate table.
-
-In this example, I have assiged actors `roles` and movies `cast`. Now that this is set up I can use them like so:
-
-```
+```php
 $actor = $actors[123];
 
 echo $actor->name . ' has the roles:' . "\n"
@@ -722,11 +755,8 @@ foreach ($actors[123]->roles as $role) {
 
 Which will print out:
 
-```
+```php
 Samuel L. Jackson has the roles:
 Jules Winnfield in Pulp Fiction
 Neville Flynn in Snakes on a plane
 ```
-
-
-#### *Todo: include docs on how to set the character name*
