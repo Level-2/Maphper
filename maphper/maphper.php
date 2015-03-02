@@ -131,29 +131,15 @@ class Maphper implements \Countable, \ArrayAccess, \Iterator {
 		return $this->dataSource->getErrors();
 	}
 	
-	public function filter($filter) {
-		$maphper = new Maphper($this->dataSource, $this->settings, $this->relations);
-		$maphper->settings['filter'] = $filter + $this->settings['filter'];
-		return $maphper;
+	public function __call($method, $args) {
+		if (isset($this->settings[$method])) {
+			$maphper = new Maphper($this->dataSource, $this->settings, $this->relations);
+			if (is_array($maphper->settings[$method])) $maphper->settings[$method] = $args[0] + $maphper->settings[$method];
+			else $maphper->settings[$method] = $args[0];
+			return $maphper;
+		}
+		else throw new \Exception('Method Maphper::' . $method . ' does not exist');
 	}
-	
-	public function sort($sort) {
-		$maphper = new Maphper($this->dataSource, $this->settings, $this->relations);
-		$maphper->settings['sort'] = $sort;
-		return $maphper;		
-	}
-		
-	public function limit($limit) {
-		$maphper = new Maphper($this->dataSource, $this->settings, $this->relations);
-		$maphper->settings['limit'] = $limit;
-		return $maphper;
-	}	
-	
-	public function offset($offset) {
-		$maphper = new Maphper($this->dataSource, $this->settings, $this->relations);
-		$maphper->settings['offset'] = $offset;
-		return $maphper;
-	}	
 	
 	public function findAggregate($function, $field, $group = null, array $criteria = []) {
 		return $this->dataSource->findAggregate($function, $field, $group, $this->settings['filter']);
