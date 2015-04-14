@@ -38,9 +38,7 @@ class Database implements \Maphper\DataSource {
 	
 	public function getPrimaryKey() {
 		return $this->primaryKey;
-	}
-	
-	
+	}	
 	
 	public function deleteById($id) {
 		$this->adapter->delete($this->table, [$this->primaryKey[0] . ' = :id'], [':id' => $id], 1);		
@@ -54,7 +52,9 @@ class Database implements \Maphper\DataSource {
 				$date = new \DateTime($obj);
 				if ($date->format('Y-m-d H:i:s') == substr($obj, 0, 20)) $obj = $date;
 			}
-			catch (\Exception $e) {}
+			catch (\Exception $e) {
+				//Doesn't need to do anything as the try/catch is working out whether $obj is a date
+			}
 		}
 		return $obj;
 	}
