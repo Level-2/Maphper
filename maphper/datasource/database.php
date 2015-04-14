@@ -13,7 +13,7 @@ class Database implements \Maphper\DataSource {
 	private $resultCache = [];	
 	private $errors = [];
 	private $alterDb = false;	
-	
+	private $adapter;
 	
 	public function __construct($db, $table, $primaryKey = 'id', array $options = []) {
 		if ($db instanceof \PDO) $this->adapter = $this->getAdapter($db);
