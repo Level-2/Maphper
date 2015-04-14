@@ -84,7 +84,8 @@ class Database implements \Maphper\DataSource {
 			}
 			else if (!is_numeric($key) && is_array($value)) {
 				$inSql = [];
-				for ($i = 0; $i < count($value); $i++) {
+				$count = count($value);
+				for ($i = 0; $i < $count; $i++) {
 					$args[$key . $i] = $value[$i];
 					$inSql[] = ':' . $key . $i;
 				}
