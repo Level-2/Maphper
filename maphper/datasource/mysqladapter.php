@@ -3,7 +3,6 @@ namespace Maphper\DataSource;
 class MySqlAdapter implements DatabaseAdapter {
 	private $pdo;
 	private $queryCache = [];
-	private $errorMode;
 	
 	public function __construct(\PDO $pdo) {
 		$this->pdo = $pdo;
@@ -144,7 +143,8 @@ class MySqlAdapter implements DatabaseAdapter {
 		$runAgain = false;
 		$columns = $this->pdo->query('SELECT * FROM '. $this->quote($table) . ' PROCEDURE ANALYSE(1,1)')->fetchAll(\PDO::FETCH_OBJ);
 		foreach ($columns as $column) {
-			$name = $this->quote(end((explode('.', $column->Field_name))));
+			$parts = explode('.', $column->Field_name);
+			$name = $this->quote(end($parts));
 			if ($column->Min_value === null && $column->Max_value === null) $this->pdo->query('ALTER TABLE ' . $this->quote($table) . ' DROP COLUMN ' . $name);
 			else {
 				$type = $column->Optimal_fieldtype;
@@ -160,14 +160,14 @@ class MySqlAdapter implements DatabaseAdapter {
 				//If it's text, work out if it would be better to be something else
 				if (strpos($type, 'VARCHAR') !== false || strpos($type, 'CHAR') !== false || strpos($type, 'BINARY') !== false || strpos($type, 'BLOB') !== false || strpos($type, 'TEXT') !== false) {
 					//See if it's an int
-					$count = $this->pdo->query('SELECT count(*) FROM ' . $this->table . ' WHERE concat(\'\', ' . $name . ' * 1) != ABS(' . $name . ')) LIMIT 1')->fetch(\PDO::FETCH_OBJ)->count;
+					$count = $this->pdo->query('SELECT count(*) FROM ' . $table . ' WHERE concat(\'\', ' . $name . ' * 1) != ABS(' . $name . ')) LIMIT 1')->fetch(\PDO::FETCH_OBJ)->count;
 					if ($count == 0) {
 						$type = 'INT(11)';
 						$runAgain = true;
 					}
 					else {
 						//See if it's decimal
-						$count = $this->pdo->query('SELECT count(*) FROM ' . $this->table . ' WHERE concat(\'\', ' . $name . ' * 1) != ' . $name . ')')->fetch(\PDO::FETCH_OBJ)->count;
+						$count = $this->pdo->query('SELECT count(*) FROM ' . $table . ' WHERE concat(\'\', ' . $name . ' * 1) != ' . $name . ')')->fetch(\PDO::FETCH_OBJ)->count;
 						if ($count == 0) {
 							$type = 'DECIMAL(64,64)';
 							$runAgain = true;

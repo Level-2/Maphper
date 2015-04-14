@@ -144,10 +144,8 @@ class Database implements \Maphper\DataSource {
 		$args = $query['args'];
 		$sql = $query['sql'];
 		try {
-			if (self::EDIT_INDEX & $this->alterDb) {
-				$this->adapter->addIndex($this->table, array_keys($args));
-				if ($group) $this->adapter->addIndex($this->table, explode(',', $group));
-			}
+			$this->addIndex(array_keys($args));
+			if ($group) $this->addIndex(explode(',', $group));
 			return $this->adapter->aggregate($this->table, $function, $field, $sql, $args, $group);
 		}
 		catch (\Exception $e) {
@@ -155,7 +153,10 @@ class Database implements \Maphper\DataSource {
 			return $group ? [] : 0;
 		}
 	}
-		
+	
+	private function addIndex($args) {
+		if (self::EDIT_INDEX & $this->alterDb) $this->adapter->addIndex($this->table, $args);
+	}
 
 	public function findByField(array $fields, $options = []) {
 		$cacheId = md5(serialize(func_get_args()));	
@@ -172,10 +173,8 @@ class Database implements \Maphper\DataSource {
 			$order = (!isset($options['order'])) ? $this->defaultSort : $order = $options['order'];
 			try {
 				$this->resultCache[$cacheId] = $this->adapter->select($this->table, $sql, $args, $order, $limit, $offset);
-				if (self::EDIT_INDEX & $this->alterDb) {
-					$this->adapter->addIndex($this->table, array_keys($args));
-					$this->adapter->addIndex($this->table, explode(',', $order));
-				}
+				$this->addIndex(array_keys($args));
+				$this->addIndex(explode(',', $order));
 			}
 			catch (\Exception $e) {
 				$this->errors[] = $e;
@@ -192,16 +191,12 @@ class Database implements \Maphper\DataSource {
 		$query = $this->buildFindQuery($fields, $mode);
 		$args = $query['args'];
 		$sql = $query['sql'];		
-	
-		if ($sql[0] == '')  $where = '';
-		else if (\Maphper\Maphper::FIND_OR & $mode) $where = ' WHERE ' . implode(' OR ', $sql);
-		else $where = ' WHERE ' . implode(' AND ', $sql);			
-	
+
 		if (isset($options['limit']) != null) $limit = ' LIMIT ' . $options['limit'];
 		else $limit = '';
 	
 		$this->adapter->delete($this->table, $sql, $args, $limit);
-		if (self::EDIT_INDEX & $this->alterDb)	$this->adapter->addIndex($this->table, array_keys($args));
+		$this->addIndex(array_keys($args));
 
 		//Clear the cache
 		$this->cache = [];
@@ -235,8 +230,7 @@ class Database implements \Maphper\DataSource {
 		catch (\Exception $e) {
 			if (self::EDIT_STRUCTURE & $this->alterDb) {
 				$this->adapter->alterDatabase($this->table, $this->primaryKey, $writeData);
-				$result =  $this->adapter->insert($this->table, $this->primaryKey, $writeData);
-				
+				$this->adapter->insert($this->table, $this->primaryKey, $writeData);				
 			}
 			else throw $e;
 		}		

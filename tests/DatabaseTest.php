@@ -9,7 +9,7 @@ class DatabaseTest extends PHPUnit_Framework_TestCase {
 	
 	public function __construct() {
 		parent::__construct();
-		$this->pdo = new \PDO('mysql:dbname=maphpertest;host=127.0.0.1', 'u', 'p');
+		$this->pdo = new \PDO('mysql:dbname=maphpertest;host=127.0.0.1', 'u', '');
 		$this->pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_SILENT);
 	}
 	
@@ -886,22 +886,5 @@ class DatabaseTest extends PHPUnit_Framework_TestCase {
 		$role = $actor->roles->current();
 		$this->assertEquals('Neville Flynn', $role->characterName);
 		$this->assertEquals('Snakes on a Plane', $role->movie->title);		
-	}
-}
-
-class Blog {
-	
-	
-}
-
-class BlogPrivate {
-	private $title;
-	
-	public function getTitle() {
-		return $this->title;
-	}
-	
-	public function setTitle($title) {
-		$this->title = $title;
 	}
 }

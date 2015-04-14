@@ -43,7 +43,8 @@ class Maphper implements \Countable, \ArrayAccess, \Iterator {
 	}
 		
 	public function key() {
-		$pk = end($this->dataSource->getPrimaryKey());
+		$pk = $this->dataSource->getPrimaryKey();
+		$pk = end($pk);
 		return $this->array[$this->iterator]->$pk;
 	}
 	
@@ -132,7 +133,7 @@ class Maphper implements \Countable, \ArrayAccess, \Iterator {
 	}
 	
 	public function __call($method, $args) {
-		if (isset($this->settings[$method])) {
+		if (array_key_exists($method, $this->settings)) {
 			$maphper = new Maphper($this->dataSource, $this->settings, $this->relations);
 			if (is_array($maphper->settings[$method])) $maphper->settings[$method] = $args[0] + $maphper->settings[$method];
 			else $maphper->settings[$method] = $args[0];

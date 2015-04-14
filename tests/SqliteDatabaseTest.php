@@ -3,7 +3,7 @@
  * Integration tests. Tests Maphper working with a Database DataSource
  */
 
-class DatabaseTest extends PHPUnit_Framework_TestCase {
+class SqliteDatabaseTest extends PHPUnit_Framework_TestCase {
 
 	private $maphper;
 	private $pdo;
@@ -183,14 +183,14 @@ class DatabaseTest extends PHPUnit_Framework_TestCase {
 	}
 	
 	public function testResultClassNew() {
-		$blogs = new \Maphper\Maphper($this->getDataSource('blog', 'id', ['resultClass' => 'blog']));
+		$blogs = new \Maphper\Maphper($this->getDataSource('blog', 'id'), ['resultClass' => 'blog']);
 		$blog = $blogs[null];
 		$this->assertInstanceOf('blog', $blog);
 	}
 	
 	public function testResultClassExisting() {
 		$this->populateBlogs();
-		$blogs = new \Maphper\Maphper($this->getDataSource('blog', 'id', ['resultClass' => 'blog']));
+		$blogs = new \Maphper\Maphper($this->getDataSource('blog', 'id'), ['resultClass' => 'blog']);
 		
 		foreach ($blogs as $blog) {
 			$this->assertInstanceOf('blog', $blog);
@@ -202,7 +202,7 @@ class DatabaseTest extends PHPUnit_Framework_TestCase {
 	 */
 	public function testResultClassPrivateProperties() {
 		$this->populateBlogs();
-		$blogs = new \Maphper\Maphper($this->getDataSource('blog', 'id', ['resultClass' => 'BlogPrivate']));
+		$blogs = new \Maphper\Maphper($this->getDataSource('blog', 'id'), ['resultClass' => 'BlogPrivate']);
 	
 		$blog = $blogs[2];
 		$this->assertInstanceOf('BlogPrivate', $blog);
@@ -211,7 +211,7 @@ class DatabaseTest extends PHPUnit_Framework_TestCase {
 	
 	public function testResultClassPrivatePropertiesWrite() {
 		$this->populateBlogs();
-		$blogs = new \Maphper\Maphper($this->getDataSource('blog', 'id', ['resultClass' => 'BlogPrivate']));
+		$blogs = new \Maphper\Maphper($this->getDataSource('blog', 'id'), ['resultClass' => 'BlogPrivate']);
 	
 		$blog = $blogs[2];
 		
@@ -222,7 +222,7 @@ class DatabaseTest extends PHPUnit_Framework_TestCase {
 		//Reload the mapper to ensure no cacheing is used
 		unset($blogs);
 		unset($blog);
-		$blogs = new \Maphper\Maphper($this->getDataSource('blog', 'id', ['resultClass' => 'BlogPrivate']));
+		$blogs = new \Maphper\Maphper($this->getDataSource('blog', 'id'), ['resultClass' => 'BlogPrivate']);
 		
 		$blog = $blogs[2];
 		
@@ -232,7 +232,7 @@ class DatabaseTest extends PHPUnit_Framework_TestCase {
 	
 	public function testLoopKey() {
 		$this->populateBlogs();
-		$blogs = new \Maphper\Maphper($this->getDataSource('blog', 'id', ['resultClass' => 'blog']));
+		$blogs = new \Maphper\Maphper($this->getDataSource('blog', 'id'), ['resultClass' => 'blog']);
 		
 		foreach ($blogs as $id => $blog) {
 			$this->assertEquals($id, $blog->id);
@@ -241,7 +241,7 @@ class DatabaseTest extends PHPUnit_Framework_TestCase {
 	
 	public function testAlterColumnType() {
 		$this->populateBlogs();
-		$blogs = new \Maphper\Maphper($this->getDataSource('blog', 'id', ['resultClass' => 'blog', 'editmode' => true]));
+		$blogs = new \Maphper\Maphper($this->getDataSource('blog', 'id', ['editmode' => true]), ['resultClass' => 'blog']);
 		$blog = $blogs[3];
 		$blog->rating = 'VVV';
 		
@@ -470,7 +470,7 @@ class DatabaseTest extends PHPUnit_Framework_TestCase {
 		$blogs = new \Maphper\Maphper($this->getDataSource('blog'));
 		$authors = new \Maphper\Maphper($this->getDataSource('author'));
 
-		$relation = new \Maphper\Relation(\Maphper\Relation::ONE, $authors, 'authorId', 'id');
+		$relation = new \Maphper\Relation\One($authors, 'authorId', 'id');
 		$blogs->addRelation('author', $relation);
 		
 		
@@ -488,7 +488,7 @@ class DatabaseTest extends PHPUnit_Framework_TestCase {
 		$blogs = new \Maphper\Maphper($this->getDataSource('blog'));
 		$authors = new \Maphper\Maphper($this->getDataSource('author'));
 		
-		$authors->addRelation('blogs', new \Maphper\Relation(\Maphper\Relation::MANY, $blogs, 'id', 'authorId'));
+		$authors->addRelation('blogs', new \Maphper\Relation\Many($blogs, 'id', 'authorId'));
 		$author2 = $authors[2];
 		
 		//There were 20 blogs spread equally between 2 authors so this author should have 10 blogs
@@ -502,7 +502,7 @@ class DatabaseTest extends PHPUnit_Framework_TestCase {
 		
 		$blogs = new \Maphper\Maphper($this->getDataSource('blog'));
 		$authors = new \Maphper\Maphper($this->getDataSource('author'));		
-		$blogs->addRelation('author', new \Maphper\Relation(\Maphper\Relation::ONE, $authors, 'authorId', 'id'));
+		$blogs->addRelation('author', new \Maphper\Relation\One($authors, 'authorId', 'id'));
 		
 		
 		$blog2 = $blogs[2];
@@ -521,7 +521,7 @@ class DatabaseTest extends PHPUnit_Framework_TestCase {
 		
 		//Get a new instance of the mapper to avoid any caching
 		$blogs = new \Maphper\Maphper($this->getDataSource('blog'));
-		$blogs->addRelation('author', new \Maphper\Relation(\Maphper\Relation::ONE, $authors, 'authorId', 'id'));
+		$blogs->addRelation('author', new \Maphper\Relation\One($authors, 'authorId', 'id'));
 		
 		
 		$this->assertEquals('Author 3', $blogs[2]->author->name);
@@ -533,7 +533,7 @@ class DatabaseTest extends PHPUnit_Framework_TestCase {
 		$this->populateBlogsAuthors();
 		$blogs = new \Maphper\Maphper($this->getDataSource('blog'));
 		$authors = new \Maphper\Maphper($this->getDataSource('author'));
-		$authors->addRelation('blogs', new \Maphper\Relation(\Maphper\Relation::MANY, $blogs, 'id', 'authorId'));
+		$authors->addRelation('blogs', new \Maphper\Relation\Many($blogs, 'id', 'authorId'));
 		
 		$author = $authors[2];
 		
@@ -561,7 +561,7 @@ class DatabaseTest extends PHPUnit_Framework_TestCase {
 		$blogs = new \Maphper\Maphper($this->getDataSource('blog', 'id', ['editmode' => true]));
 		$authors = new \Maphper\Maphper($this->getDataSource('author', 'id', ['editmode' => true]));
 		
-		$blogs->addRelation('author', new \Maphper\Relation(\Maphper\Relation::ONE, $authors, 'authorId', 'id'));
+		$blogs->addRelation('author', new \Maphper\Relation\One($authors, 'authorId', 'id'));
 		
 		
 		$blog = new stdClass;
@@ -578,21 +578,3 @@ class DatabaseTest extends PHPUnit_Framework_TestCase {
 
 
 }
-
-class Blog {
-	
-	
-}
-
-class BlogPrivate {
-	private $title;
-	
-	public function getTitle() {
-		return $this->title;
-	}
-	
-	public function setTitle($title) {
-		$this->title = $title;
-	}
-}
-
