@@ -24,7 +24,7 @@ class Maphper implements \Countable, \ArrayAccess, \Iterator {
 	public function __construct(DataSource $dataSource, array $settings = null, array $relations = []) {
 		$this->dataSource = $dataSource;
 		if ($settings) $this->settings = array_replace($this->settings, $settings);
-		if ($relations) $this->relations = $relations;		
+		$this->relations = $relations;		
 	}
 	
 	public function addRelation($name, Relation $relation) {
@@ -66,18 +66,20 @@ class Maphper implements \Countable, \ArrayAccess, \Iterator {
 		return isset($this->array[$n]) ? $this->wrap($this->array[$n]) : null;
 	}
 	
+	private function processFilters($value) {
+		//When saving to a mapper with filters, write the filters back into the object being stored
+		foreach ($this->settings['filter'] as $key => $filterValue) {			
+			if (empty($value->$key) && !is_array($filterValue)) $value->$key = $filterValue;
+		}		
+	}
+
 	public function offsetSet($offset, $value) {
 		foreach ($this->relations as $name => $relation) {
 			//If a relation has been overridden, run the overwrite	
 			if (isset($value->$name) &&	!($value->$name instanceof Relation\One)) $relation->overwrite($value, $value->$name);			
 		}
-
-		foreach ($this->settings['filter'] as $key => $filterValue) {
-			//When saving to a mapper with filters, write the filters back into the object being stored
-			if (empty($value->$key) && !is_array($filterValue)) $value->$key = $filterValue;
-		}
 		
-		$value = $this->wrap($value, true);
+		$value = $this->wrap($this->processFilters($value), true);
 		
 		$pk = $this->dataSource->getPrimaryKey();
 		if ($offset !== null) $value->{$pk[0]} = $offset;
@@ -113,8 +115,7 @@ class Maphper implements \Countable, \ArrayAccess, \Iterator {
 			foreach ($object as &$o) $this->wrap($o);
 			return $object;
 		}
-		else if (!is_object($object)) return $object;
-		else {
+		else if (is_object($object)) {
 			if (isset($object->__maphperRelationsAttached)) return $object;			
 			$writeClosure = function($field, $value) {	$this->$field = $value;	};
 			
@@ -126,6 +127,7 @@ class Maphper implements \Countable, \ArrayAccess, \Iterator {
 			$new->__maphperRelationsAttached = $this;
 			return $new;
 		}
+		return $object;
 	}
 
 	public function getErrors() {
@@ -142,7 +144,7 @@ class Maphper implements \Countable, \ArrayAccess, \Iterator {
 		else throw new \Exception('Method Maphper::' . $method . ' does not exist');
 	}
 	
-	public function findAggregate($function, $field, $group = null, array $criteria = []) {
+	public function findAggregate($function, $field, $group = null) {
 		return $this->dataSource->findAggregate($function, $field, $group, $this->settings['filter']);
 	}
 	
