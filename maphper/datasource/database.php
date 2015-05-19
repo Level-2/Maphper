@@ -92,26 +92,28 @@ class Database implements \Maphper\DataSource {
 				if (count($inSql) == 0) return [];
 				else $sql[] = $this->adapter->quote($key) . ' IN ( ' .  implode(', ', $inSql) . ')';
 				continue;
-			}			
-			else if (\Maphper\Maphper::FIND_EXACT & $mode) $operator = '=';
-			else if (\Maphper\Maphper::FIND_LIKE & $mode) {
-				$operator = 'LIKE';
-				$value = '%' . $value . '%';
 			}
-			else if (\Maphper\Maphper::FIND_STARTS & $mode) {
-				$operator = 'LIKE';
-				$value = $value . '%';
+			else {
+				if (\Maphper\Maphper::FIND_EXACT & $mode) $operator = '=';
+				else if (\Maphper\Maphper::FIND_LIKE & $mode) {
+					$operator = 'LIKE';
+					$value = '%' . $value . '%';
+				}
+				else if (\Maphper\Maphper::FIND_STARTS & $mode) {
+					$operator = 'LIKE';
+					$value = $value . '%';
+				}
+				else if (\Maphper\Maphper::FIND_NOCASE & $mode) {
+					$operator = 'LIKE';
+				}
+				else if (\Maphper\Maphper::FIND_BIT & $mode) $operator = '&';
+				else if (\Maphper\Maphper::FIND_GREATER & $mode) $operator = '>';
+				else if (\Maphper\Maphper::FIND_LESS & $mode) $operator = '<';
+				else if (\Maphper\Maphper::FIND_NOT & $mode) $operator = '!=';
+				
+				$args[$key] = $value;
+				$sql[] = $this->adapter->quote($key) . ' ' . $operator . ' :' . $key;
 			}
-			else if (\Maphper\Maphper::FIND_NOCASE & $mode) {
-				$operator = 'LIKE';
-			}
-			else if (\Maphper\Maphper::FIND_BIT & $mode) $operator = '&';
-			else if (\Maphper\Maphper::FIND_GREATER & $mode) $operator = '>';
-			else if (\Maphper\Maphper::FIND_LESS & $mode) $operator = '<';
-			else if (\Maphper\Maphper::FIND_NOT & $mode) $operator = '!=';
-			
-			$args[$key] = $value;
-			$sql[] = $this->adapter->quote($key) . ' ' . $operator . ' :' . $key;
 		}
 		
 		if (\Maphper\Maphper::FIND_OR & $mode) $query = implode(' OR  ', $sql);
@@ -222,7 +224,6 @@ class Database implements \Maphper\DataSource {
 		$read = $readClosure->bindTo($data, $data);
 		$writeData = $read();			
 		try {
-		//	print_r($writeData);			
 			$result = $this->adapter->insert($this->table, $this->primaryKey, $writeData);
 			//PDO may be silent so throw an exeption if the insert failed
 			if ($result->errorCode() > 0) throw new \Exception('Could not insert into ' . $this->table);

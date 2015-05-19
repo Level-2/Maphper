@@ -34,6 +34,7 @@ class Maphper implements \Countable, \ArrayAccess, \Iterator {
 	public function getRelations() {
 		return $this->relations;
 	}
+	
 	public function count($group = null) {
 		return $this->dataSource->findAggregate('count', $group == null ? $this->dataSource->getPrimaryKey() : $group, $group, $this->settings['filter']);
 	}
@@ -70,7 +71,8 @@ class Maphper implements \Countable, \ArrayAccess, \Iterator {
 		//When saving to a mapper with filters, write the filters back into the object being stored
 		foreach ($this->settings['filter'] as $key => $filterValue) {			
 			if (empty($value->$key) && !is_array($filterValue)) $value->$key = $filterValue;
-		}		
+		}
+		return $value;
 	}
 
 	public function offsetSet($offset, $value) {
