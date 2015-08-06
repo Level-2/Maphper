@@ -92,7 +92,7 @@ class MySqlAdapter implements DatabaseAdapter {
 		else if (is_int($val)) return  'INT(11)';
 		else if (is_double($val)) return 'DECIMAL(9,' . strlen($val) - strrpos($val, '.') - 1 . ')';
 		else if (is_string($val) && strlen($val) < 256) return 'VARCHAR(255)';
-		else if (is_string($val) && strlen($val) > 256) return 'LONGBLOG';
+		else if (is_string($val) && strlen($val) > 256) return 'LONGBLOB';
 		else return 'VARCHAR(255)';		
 	}
 	
@@ -140,6 +140,9 @@ class MySqlAdapter implements DatabaseAdapter {
 	}
 	
 	public function optimiseColumns($table) {
+		//Buggy, disabled for now!
+		return;
+
 		$runAgain = false;
 		$columns = $this->pdo->query('SELECT * FROM '. $this->quote($table) . ' PROCEDURE ANALYSE(1,1)')->fetchAll(\PDO::FETCH_OBJ);
 		foreach ($columns as $column) {
