@@ -40,7 +40,7 @@ class Maphper implements \Countable, \ArrayAccess, \Iterator {
 	}
 
 	public function current() {
-		return $this->wrap($this->array[$this->iterator]);
+		return $this->wrap($this->createNew($this->array[$this->iterator]));
 	}
 		
 	public function key() {
@@ -76,14 +76,13 @@ class Maphper implements \Countable, \ArrayAccess, \Iterator {
 	}
 
 	public function offsetSet($offset, $value) {
-
+	
 		$value = $this->processFilters($value);
-		
+
 		$pk = $this->dataSource->getPrimaryKey();
 		if ($offset !== null) $value->{$pk[0]} = $offset;
 
 		$this->dataSource->save($value);
-
 		$value = $this->wrap($value);
 	}
 
@@ -99,7 +98,7 @@ class Maphper implements \Countable, \ArrayAccess, \Iterator {
 	public function offsetGet($offset) {
 		if (isset($offset)) {
 			if (count($this->dataSource->getPrimaryKey()) > 1) return new MultiPk($this, $offset, $this->dataSource->getPrimaryKey());			
-			return $this->wrap($this->dataSource->findById($offset));
+			return $this->wrap($this->createNew($this->dataSource->findById($offset)));
 		}
 		else {
 			$obj = $this->createNew();
@@ -108,38 +107,36 @@ class Maphper implements \Countable, \ArrayAccess, \Iterator {
 		}
 	}
 
-	public function createNew() {
-		return (is_callable($this->settings['resultClass'])) ? call_user_func($this->settings['resultClass']) : new $this->settings['resultClass'];
+	public function createNew($data = []) {
+		$obj = (is_callable($this->settings['resultClass'])) ? call_user_func($this->settings['resultClass']) : new $this->settings['resultClass'];
+		$writeClosure = function($field, $value) {	$this->$field = $value;	};			
+		$write = $writeClosure->bindTo($obj, $obj);
+		foreach ($data as $key => $value) $write($key, $this->dataSource->processDates($value));
+		return $obj;		
 	}
 	
 	private function wrap($object) {
+
 		if (is_array($object)) {
 			foreach ($object as &$o) $this->wrap($o);
 			return $object;
 		}
 		else if (is_object($object)) {
-			//Is it the right class?
-			if (get_class($object) != $this->settings['resultClass']) {
-				$new = $this->createNew();
-				$writeClosure = function($field, $value) {	$this->$field = $value;	};			
-				$write = $writeClosure->bindTo($new, $new);
-				foreach ($object as $key => $value) $write($key, $this->dataSource->processDates($value));		
-			}
-			else $new = $object;
 
 			//see if any relations need overwriting
 			foreach ($this->relations as $name => $relation) {
 				if (isset($object->$name)) {					
 					//After overwriting the relation, does the parent object ($object) need overwriting as well?
-					if ($relation->overwrite($new, $new->$name)) $this[] = $new;
+					if ($relation->overwrite($object, $object->$name)) $this[] = $object;
 				}
-				$new->$name = $relation->getData($new); 
+				$object->$name = $relation->getData($object); 
 			}			
-
-			$new->__maphperRelationsAttached = $this;
-			return $new;
+									//	if (isset($object->debug)) return;
+			//$new->__maphperRelationsAttached = $this;
+			
+			return $object;
 		}
-		return $object;
+		//return $object;
 	}
 
 	public function getErrors() {

@@ -878,6 +878,7 @@ class MySqlDatabaseTest extends PHPUnit_Framework_TestCase {
 		$this->assertEquals($actors[1]->movies->item(1)->title, 'Movie 3');
 	
 	}
+
 	
 	private function setupMoviesActorsReal() {
 		$cast = new \Maphper\Maphper($this->getDataSource('cast', ['movieId', 'actorId'], ['editmode' => true]));
@@ -892,6 +893,7 @@ class MySqlDatabaseTest extends PHPUnit_Framework_TestCase {
 	
 	
 	public function testManyManySaveIntermediate() {
+
 		$this->dropTable('actor');
 		$this->dropTable('movie');
 		$this->dropTable('cast');		
@@ -909,6 +911,7 @@ class MySqlDatabaseTest extends PHPUnit_Framework_TestCase {
 		$movie->mid = 8;
 		$movie->title = 'Pulp Fiction';	
 		
+
 		//save the movie
 		$movies[] = $movie;
 		
@@ -916,10 +919,9 @@ class MySqlDatabaseTest extends PHPUnit_Framework_TestCase {
 		$role->characterName = 'Jules Winnfield';
 		$role->movie = $movie;
 				
-	
+
 		$actor->roles[] = $role;
 
-		
 		$this->assertEquals(count($cast), 1);
 		
 		//Recreate mappers to clear caches
@@ -946,6 +948,7 @@ class MySqlDatabaseTest extends PHPUnit_Framework_TestCase {
 		$actor = new \stdClass;
 		$actor->aid = 123;
 		$actor->name = 'Samuel L. Jackson';
+		$actor->roles = [];
 		
 		
 		
@@ -992,8 +995,9 @@ class MySqlDatabaseTest extends PHPUnit_Framework_TestCase {
 		$actor = $actors[123];
 		
 		$this->assertEquals($actor->name, 'Samuel L. Jackson');
+
 		$actor->roles->rewind();
-		
+		$this->assertEquals(2, count($actor->roles));
 		$role = $actor->roles->current();
 		$this->assertEquals('Jules Winnfield', $role->characterName);
 		$this->assertEquals('Pulp Fiction', $role->movie->title);

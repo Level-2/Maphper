@@ -29,8 +29,9 @@ class ManyMany implements \Iterator, \ArrayAccess, \Countable, \Maphper\Relation
 	}
 	
 	public function overwrite($parentObject, &$data) {
+		$this->results = $data;
 		$this->object = $parentObject;
-		foreach ($data as $d) $this[] = $d;
+		foreach ($data as $dt) $this[] = $dt;
 	}
 	
 	//bit hacky, breaking encapsulation, but simplest way to work out the info for the other side of the many:many relationship.
@@ -86,7 +87,9 @@ class ManyMany implements \Iterator, \ArrayAccess, \Countable, \Maphper\Relation
 	public function rewind() {
 		$this->iterator = 0;
 		list ($relatedField, $valueField, $relatedMapper) = $this->getOtherFieldNameInfo();
-		$this->results = iterator_to_array($this->intermediateMapper->filter([$valueField => $this->object->$relatedField]), false);
+
+		$x = $this->intermediateMapper->filter([$valueField => $this->object->$relatedField]);
+		$this->results = iterator_to_array($x, false);
 	}
 	
 	public function offsetExists($name) {
@@ -101,19 +104,27 @@ class ManyMany implements \Iterator, \ArrayAccess, \Countable, \Maphper\Relation
 		return $items[0]->{$this->name};
 	}
 	
-	public function offsetSet($name, $value) {	
+	public function offsetSet($name, $value) {
 		list($relatedField, $valueField, $mapper) = $this->getOtherFieldNameInfo();
 		if ($this->autoTraverse) {
 			$record = new \stdClass;		
 			$record->{$this->parentField} =  $value->{$this->localField};
 			$record->$valueField = $this->object->{$relatedField};
 			$this->intermediateMapper[] = $record;
+
 		}
 		else {
 			$record = $value;
-			$record->{$this->parentField} = $value->{$this->intermediateName}->{$this->localField};
-			$record->$valueField = $this->object->{$relatedField};			
-			$this->intermediateMapper[] = $record;
+			if (isset($record->{$this->parentField}) && isset($value->{$this->intermediateName}) && $record->{$this->parentField} == $value->{$this->intermediateName}->{$this->localField} && $record->$valueField == $this->object->{$relatedField}) {
+				return;
+			}
+			else { 
+				$record->{$this->parentField} = $value->{$this->intermediateName}->{$this->localField};
+				$record->$valueField = $this->object->{$relatedField};
+				$this->intermediateMapper[] = $record;	
+				return true;
+			}			
+			
 		}		
 	}
 	
