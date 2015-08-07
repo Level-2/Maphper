@@ -118,7 +118,21 @@ class SqliteAdapter implements DatabaseAdapter {
 		else if (is_string($val) && strlen($val) > 256) return 'LONGBLOG';
 		else return 'VARCHAR(255)';		
 	}
-	
+
+	protected function tableExists($name) {
+		$result = $this->pdo->query('SELECT name FROM sqlite_master WHERE type="table" and name="'. $name.'"');
+		return count($result->fetchAll()) == 1;
+	}
+
+	private function getColumns($table) {
+		$result = $this->pdo->query('PRAGMA table_info(' . $table . ');')->fetchAll(\PDO::FETCH_OBJ);
+		$return = [];
+		foreach ($result as $row) {
+			$return[] = $row->name;
+		}
+		return $return;
+	}
+
 	//Alter the database so that it can store $data
 	public function alterDatabase($table, array $primaryKey, $data) {
 		$affix = '_'.substr(md5($table), 0, 6);
@@ -126,12 +140,19 @@ class SqliteAdapter implements DatabaseAdapter {
 		$fields = [];
 		foreach ($data as $key => $value) { $fields[] = $key; }
 		try {
-			$this->pdo->query('INSERT INTO ' . $this->quote($table . $affix) .' SELECT * FROM ' . $this->quote($table));
-			$this->pdo->query('DROP TABLE IF EXISTS ' . $table );
+			if ($this->tableExists($table)) {
+				$columns = implode(', ', $this->getColumns($table));			
+
+				$this->pdo->query('INSERT INTO ' . $this->quote($table . $affix) . '(' . $columns . ') SELECT ' . $columns . ' FROM ' . $this->quote($table));
+				$this->pdo->query('DROP TABLE ' . $table );
+			}
 		}
 		catch (\PDOException $e) {
 			// No data to copy
+			echo $e->getMessage();
 		}
+
+
 		$this->pdo->query('ALTER TABLE ' . $table . $affix. ' RENAME TO '. $table );
 	}
 
