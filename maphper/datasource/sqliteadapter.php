@@ -151,8 +151,6 @@ class SqliteAdapter implements DatabaseAdapter {
 			// No data to copy
 			echo $e->getMessage();
 		}
-
-
 		$this->pdo->query('ALTER TABLE ' . $table . $affix. ' RENAME TO '. $table );
 	}
 
