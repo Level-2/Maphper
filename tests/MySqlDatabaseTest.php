@@ -2,7 +2,7 @@
 /*
  * Integration tests. Tests Maphper working with a Database DataSource
  */
-class DatabaseTest extends PHPUnit_Framework_TestCase {
+class MySqlDatabaseTest extends PHPUnit_Framework_TestCase {
 
 	private $maphper;
 	private $pdo;
@@ -27,6 +27,10 @@ class DatabaseTest extends PHPUnit_Framework_TestCase {
 		return new \Maphper\DataSource\Database($this->pdo, $name, $primaryKey, $options);		
 	}
 	
+
+
+
+
 	private function tableExists($name) {
 		$result = $this->pdo->query('SHOW TABLES LIKE "' . $name . '"');
 		return $result->rowCount() == 1;
@@ -122,6 +126,119 @@ class DatabaseTest extends PHPUnit_Framework_TestCase {
 		$mapper = new \Maphper\Maphper($this->getDataSource('blog'));
 		$this->assertFalse(isset($mapper[99]));
 	}
+
+
+	public function testObjectGraphSaveOne() {
+		$this->dropTable('blog');
+		$this->dropTable('author');
+
+		$blogs = new \Maphper\Maphper($this->getDataSource('blog', 'id', ['editmode' => true]));
+		$authors = new \Maphper\Maphper($this->getDataSource('author', 'id', ['editmode' => true]));
+
+		$blogs->addRelation('author', new \Maphper\Relation\One($authors, 'authorId', 'id'));
+
+
+		$author = new stdClass;
+		$author->name = 'Blog Author';
+
+		$blog = new stdclass;
+		$blog->author = $author;
+		$blog->title = 'Blog 1';
+		
+
+		$this->assertEquals(0, count($blogs));
+		$this->assertEquals(0, count($authors));
+		$blogs[] = $blog;
+
+		$this->assertEquals(1, count($blogs));
+		$this->assertEquals(1, count($authors));
+	}
+
+
+	public function testObjectGraphSaveMany() {
+		$this->dropTable('blog');
+		$this->dropTable('author');
+
+
+		$blogs = new \Maphper\Maphper($this->getDataSource('blog', 'id', ['editmode' => true]));
+		$authors = new \Maphper\Maphper($this->getDataSource('author', 'id', ['editmode' => true]));
+
+		$authors->addRelation('blogs', new \Maphper\Relation\Many($blogs, 'id', 'authorId'));
+
+		$author = new stdClass;
+		$authors[] = $author;
+		$author->name = 'Blog Author';
+
+		//$author->blogs = [];
+
+		$blog1 = new stdclass;
+		$blog1->name = 'Blog 1';
+
+		$author->blogs[] = $blog1;
+
+		
+		$blog2 = new stdclass;
+		$blog2->name = 'Blog 2';
+		$author->blogs[] = $blog2;
+
+
+		//This should now save the author object and the two blog objects.
+		$authors[] = $author;
+
+		$this->assertEquals(2, count($blogs));
+		$this->assertEquals(1, count($authors));
+
+		unset($authors);
+		$authors = new \Maphper\Maphper($this->getDataSource('author', 'id', ['editmode' => true]));
+		$authors->addRelation('blogs', new \Maphper\Relation\Many($blogs, 'id', 'authorId'));
+
+		$this->assertEquals(2, count($authors[1]->blogs));
+	}
+	
+
+
+
+	public function testObjectGraphSaveDeep() {
+
+		$this->dropTable('blog');
+		$this->dropTable('author');
+		$this->dropTable('comment');
+
+		$blogs = new \Maphper\Maphper($this->getDataSource('blog', 'id', ['editmode' => true]));
+		$authors = new \Maphper\Maphper($this->getDataSource('author', 'id', ['editmode' => true]));
+		$comments = new \Maphper\Maphper($this->getDataSource('comment', 'id', ['editmode' => true]));
+
+		$authors->addRelation('blogs', new \Maphper\Relation\Many($blogs, 'id', 'authorId'));
+
+		$blogs->addRelation('comments', new \Maphper\Relation\Many($comments, 'id', 'blogId'));
+
+
+		$blogs->addRelation('author', new \Maphper\Relation\One($authors, 'authorId', 'id'));
+
+		$author = new stdClass;
+		$author->name = 'Blog Author';
+		$author->blogs = [];
+
+		$blog = new stdclass;
+		$blog->author = $author;
+		$blog->title = 'Blog 1';
+		$author->blogs[] = $blog;
+
+		$blog2 = new stdclass;
+		$blog2->author = $author;
+		$blog2->title = 'Blog 2';
+		$author->blogs[] = $blog2;
+		
+		$authors[] = $author;
+
+
+		
+
+		$this->assertEquals(2, count($blogs));
+		$this->assertEquals(1, count($authors));
+
+	}
+	
 	
 
 	private function populateBlogs() {
@@ -415,8 +532,7 @@ class DatabaseTest extends PHPUnit_Framework_TestCase {
 		$result = $this->pdo->query('SHOW COLUMNS FROM blog WHERE field = "date"')->fetch();
 		$this->assertEquals('datetime', strtolower($result['Type']));		
 	}
-	
-	
+
 	public function testDateColumnSave() {
 		$this->dropTable('blog');
 		$mapper = new \Maphper\Maphper($this->getDataSource('blog', 'id', ['editmode' => true]));
@@ -887,4 +1003,5 @@ class DatabaseTest extends PHPUnit_Framework_TestCase {
 		$this->assertEquals('Neville Flynn', $role->characterName);
 		$this->assertEquals('Snakes on a Plane', $role->movie->title);		
 	}
+	
 }

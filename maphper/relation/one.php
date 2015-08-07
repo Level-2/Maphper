@@ -44,6 +44,10 @@ class One implements \Maphper\Relation {
 	
 	public function overwrite($parentObject, &$data) {
 		$this->mapper[] = $data;
-		$parentObject->{$this->parentField} = $data->{$this->localField};
+		if (!isset($parentObject->{$this->parentField}) || $parentObject->{$this->parentField} != $data->{$this->localField}) {
+			$parentObject->{$this->parentField} = $data->{$this->localField};
+			//Trigger an update of the parent object
+			return true;
+		}		
 	}
 }

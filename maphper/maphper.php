@@ -76,17 +76,17 @@ class Maphper implements \Countable, \ArrayAccess, \Iterator {
 	}
 
 	public function offsetSet($offset, $value) {
-		foreach ($this->relations as $name => $relation) {
-			//If a relation has been overridden, run the overwrite	
-			if (isset($value->$name) &&	!($value->$name instanceof Relation\One)) $relation->overwrite($value, $value->$name);			
-		}
-		
-		$value = $this->wrap($this->processFilters($value), true);
+
+		$value = $this->processFilters($value);
 		
 		$pk = $this->dataSource->getPrimaryKey();
 		if ($offset !== null) $value->{$pk[0]} = $offset;
-		$this->dataSource->save($value);		
+
+		$this->dataSource->save($value);
+
+		$value = $this->wrap($value);
 	}
+
 	
 	public function offsetExists($offset) {
 		return (bool) $this->dataSource->findById($offset);
@@ -112,19 +112,29 @@ class Maphper implements \Countable, \ArrayAccess, \Iterator {
 		return (is_callable($this->settings['resultClass'])) ? call_user_func($this->settings['resultClass']) : new $this->settings['resultClass'];
 	}
 	
-	private function wrap($object, $updateExisting = false) {		
+	private function wrap($object) {
 		if (is_array($object)) {
 			foreach ($object as &$o) $this->wrap($o);
 			return $object;
 		}
 		else if (is_object($object)) {
-			if (isset($object->__maphperRelationsAttached)) return $object;			
-			$writeClosure = function($field, $value) {	$this->$field = $value;	};
-			
-			$new = $updateExisting ? $object : $this->createNew();
-			$write = $writeClosure->bindTo($new, $new);
-			foreach ($object as $key => $value) $write($key, $this->dataSource->processDates($value));			
-			foreach ($this->relations as $name => $relation) $new->$name = $relation->getData($new); 
+			//Is it the right class?
+			if (get_class($object) != $this->settings['resultClass']) {
+				$new = $this->createNew();
+				$writeClosure = function($field, $value) {	$this->$field = $value;	};			
+				$write = $writeClosure->bindTo($new, $new);
+				foreach ($object as $key => $value) $write($key, $this->dataSource->processDates($value));		
+			}
+			else $new = $object;
+
+			//see if any relations need overwriting
+			foreach ($this->relations as $name => $relation) {
+				if (isset($object->$name)) {					
+					//After overwriting the relation, does the parent object ($object) need overwriting as well?
+					if ($relation->overwrite($new, $new->$name)) $this[] = $new;
+				}
+				$new->$name = $relation->getData($new); 
+			}			
 
 			$new->__maphperRelationsAttached = $this;
 			return $new;

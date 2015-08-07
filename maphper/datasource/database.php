@@ -14,6 +14,7 @@ class Database implements \Maphper\DataSource {
 	private $errors = [];
 	private $alterDb = false;	
 	private $adapter;
+	private $processCache;
 	
 	public function __construct($db, $table, $primaryKey = 'id', array $options = []) {
 		if ($db instanceof \PDO) $this->adapter = $this->getAdapter($db);
@@ -45,8 +46,14 @@ class Database implements \Maphper\DataSource {
 		unset($this->cache[$id]);
 	}
 		
-	public function processDates($obj) {
-		if (is_array($obj) || (is_object($obj) && (!$obj instanceof \Iterator))) foreach ($obj as &$o) $o = $this->processDates($o);
+	public function processDates($obj, $reset = true) {
+
+		//prevent infinite recursion
+		if ($reset) $this->processCache = new \SplObjectStorage();
+		if (is_object($obj) && $this->processCache->contains($obj)) return $obj;
+		else if (is_object($obj)) $this->processCache->attach($obj, true);
+
+		if (is_array($obj) || (is_object($obj) && (!$obj instanceof \Iterator))) foreach ($obj as &$o) $o = $this->processDates($o, false);
 		if (is_string($obj) && is_numeric($obj[0]) && strlen($obj) <= 20) {
 			try {
 				$date = new \DateTime($obj);
@@ -56,6 +63,7 @@ class Database implements \Maphper\DataSource {
 				//Doesn't need to do anything as the try/catch is working out whether $obj is a date
 			}
 		}
+		
 		return $obj;
 	}
 	
@@ -218,11 +226,14 @@ class Database implements \Maphper\DataSource {
 		//Extract private properties from the object
 		$readClosure = function() {
 			$data = new \stdClass;
-			foreach ($this as $k => $v)	$data->$k = $v;
+			foreach ($this as $k => $v)	{
+				if (is_scalar($v) || is_null($v) || (is_object($v) && $v instanceof \DateTime))	$data->$k = $v;
+			}
 			return $data;
 		};
 		$read = $readClosure->bindTo($data, $data);
-		$writeData = $read();			
+		$writeData = $read();	
+
 		try {
 			$result = $this->adapter->insert($this->table, $this->primaryKey, $writeData);
 			//PDO may be silent so throw an exeption if the insert failed
