@@ -108,10 +108,14 @@ class Maphper implements \Countable, \ArrayAccess, \Iterator {
 	}
 
 	public function createNew($data = []) {
+
 		$obj = (is_callable($this->settings['resultClass'])) ? call_user_func($this->settings['resultClass']) : new $this->settings['resultClass'];
 		$writeClosure = function($field, $value) {	$this->$field = $value;	};			
 		$write = $writeClosure->bindTo($obj, $obj);
-		foreach ($data as $key => $value) $write($key, $this->dataSource->processDates($value));
+		if ($data != null) {
+			foreach ($data as $key => $value) $write($key, $this->dataSource->processDates($value));			
+		}
+
 		return $obj;		
 	}
 	

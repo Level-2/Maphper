@@ -4,8 +4,8 @@
  */
 class MySqlDatabaseTest extends PHPUnit_Framework_TestCase {
 
-	private $maphper;
-	private $pdo;
+	protected $maphper;
+	protected $pdo;
 	
 	public function __construct() {
 		parent::__construct();
@@ -20,26 +20,31 @@ class MySqlDatabaseTest extends PHPUnit_Framework_TestCase {
 	protected function tearDown() {
 
 	}
-	
-	
-		
-	private function getDataSource($name, $primaryKey = 'id', array $options = []) {
+			
+	protected function getDataSource($name, $primaryKey = 'id', array $options = []) {
 		return new \Maphper\DataSource\Database($this->pdo, $name, $primaryKey, $options);		
 	}
-	
 
 
-
-
-	private function tableExists($name) {
+	protected function tableExists($name) {
 		$result = $this->pdo->query('SHOW TABLES LIKE "' . $name . '"');
 		return $result->rowCount() == 1;
 	}
 	
-	private function dropTable($name) {
+	protected function dropTable($name) {
 		$this->pdo->query('DROP TABLE IF EXISTS ' . $name);
 	}
 	
+	protected function getColumnType($table, $column) {
+		$result = $this->pdo->query('SHOW COLUMNS FROM ' . $table . ' WHERE field = "' . $column . '"')->fetch();
+		return $result['Type'];
+	}
+
+	protected function hasIndex($table, $column) {
+		$result = $this->pdo->query('SHOW INDEX FROM ' . $table . ' WHERE Column_name = "' . $column . '"')->fetchAll();
+		return count($result) > 0;
+	}
+
 	public function testCreateTable() {
 		
 		if ($this->tableExists('foo')) {
@@ -517,7 +522,8 @@ class MySqlDatabaseTest extends PHPUnit_Framework_TestCase {
 		$this->assertEquals(0, $result['count']);
 		
 	}
-	
+
+
 	
 	public function testDateColumnCreate() {
 		$this->dropTable('blog');
@@ -529,8 +535,8 @@ class MySqlDatabaseTest extends PHPUnit_Framework_TestCase {
 		
 		$mapper[] = $blog;
 		
-		$result = $this->pdo->query('SHOW COLUMNS FROM blog WHERE field = "date"')->fetch();
-		$this->assertEquals('datetime', strtolower($result['Type']));		
+		
+		$this->assertEquals('datetime', strtolower($this->getColumnType('blog', 'date')));
 	}
 
 	public function testDateColumnSave() {
@@ -748,6 +754,7 @@ class MySqlDatabaseTest extends PHPUnit_Framework_TestCase {
 		$this->assertEquals('ten', $result['title']);		
 	}
 
+
 	
 	public function testIndexCreation() {
 		$this->dropTable('blog');
@@ -757,16 +764,16 @@ class MySqlDatabaseTest extends PHPUnit_Framework_TestCase {
 		
 		
 		//Check there is no index on the field already
-		$result = $this->pdo->query('SHOW INDEX FROM blog WHERE Column_name = "title"')->fetchAll();
-		$this->assertEquals(0, count($result));
+		$this->assertFalse($this->hasIndex('blog', 'title'));
 		//Do a lookup on the title field to trigger an index creation on it
 		$blogs = $mapper->filter(['title' => 'blog number 4']);
 		foreach ($blogs as $blog) {
 						
 		}
 				
-		$result = $this->pdo->query('SHOW INDEX FROM blog WHERE Column_name = "title"')->fetchAll();
-		$this->assertEquals(1, count($result));		
+		//$result = $this->pdo->query('SHOW INDEX FROM blog WHERE Column_name = "title"')->fetchAll();
+		//$this->assertEquals(1, count($result));
+		$this->assertTrue($this->hasIndex('blog', 'title'));
 	}
 	
 	
@@ -778,8 +785,9 @@ class MySqlDatabaseTest extends PHPUnit_Framework_TestCase {
 		
 		
 		//Check there is no index on the field already
-		$result = $this->pdo->query('SHOW INDEX FROM blog WHERE Column_name = "title"')->fetchAll();
-		$this->assertEquals(0, count($result));
+		//$result = $this->pdo->query('SHOW INDEX FROM blog WHERE Column_name = "title"')->fetchAll();
+		//$this->assertEquals(0, count($result));
+		$this->assertFalse($this->hasIndex('blog', 'title'));
 					
 			
 		$blogs = $mapper->sort('title desc');
@@ -787,8 +795,7 @@ class MySqlDatabaseTest extends PHPUnit_Framework_TestCase {
 		$blog = $blogs->current();
 		$this->assertEquals($blog->title, 'blog number 9');
 		
-		$result = $this->pdo->query('SHOW INDEX FROM blog WHERE Column_name = "title"')->fetchAll();
-		$this->assertEquals(1, count($result));
+		$this->assertTrue($this->hasIndex('blog', 'title'));
 	}
 	
 	public function testCountEmpty() {

@@ -1,5 +1,6 @@
 <?php
 namespace Maphper\DataSource;
+
 class SqliteAdapter implements DatabaseAdapter {
 	private $pdo;
 	private $queryCache = [];
@@ -69,8 +70,8 @@ class SqliteAdapter implements DatabaseAdapter {
 	public function insert($table, array $primaryKey, $data) {
 		$query = $this->buildSaveQuery($data);
 		$result = $this->query('INSERT INTO ' . $this->quote($table) . ' ('.implode(', ', array_keys($query['args'])).') VALUES ( ' . implode(', ', $query['sql']). ' )', $query['args']);
-
-		if ($result->errorCode() > 0) {
+		
+ 		if ($result->errorCode() > 0) {
 			$query = $this->buildSaveQuery($data, true);
 			$where = [];
 			foreach($primaryKey as $field) $where[] = $this->quote($field) . ' = :' . $field;
@@ -101,7 +102,12 @@ class SqliteAdapter implements DatabaseAdapter {
 				else return $stmt;
 			}
 			catch (\Exception $e) {
-				return $stmt;
+				//SQLite causes an error if when the DB schema changes, rebuild $stmt and try again.
+				if ($e->getMessage() == 'SQLSTATE[HY000]: General error: 17 database schema has changed') {
+					unset($this->queryCache[$queryId]);
+					return $this->query($query, $args);	
+				}
+				else return $stmt;				
 			}
 		}
 	}
@@ -119,7 +125,7 @@ class SqliteAdapter implements DatabaseAdapter {
 		else return 'VARCHAR(255)';		
 	}
 
-	protected function tableExists($name) {
+	private function tableExists($name) {
 		$result = $this->pdo->query('SELECT name FROM sqlite_master WHERE type="table" and name="'. $name.'"');
 		return count($result->fetchAll()) == 1;
 	}
@@ -135,6 +141,10 @@ class SqliteAdapter implements DatabaseAdapter {
 
 	//Alter the database so that it can store $data
 	public function alterDatabase($table, array $primaryKey, $data) {
+		//Unset query cache, otherwise it causes:
+		// SQLSTATE[HY000]: General error: 17 database schema has changed
+		$this->queryCache = [];
+
 		$affix = '_'.substr(md5($table), 0, 6);
 		$this->createTable($table . $affix, $primaryKey, $data);
 		$fields = [];
@@ -144,14 +154,17 @@ class SqliteAdapter implements DatabaseAdapter {
 				$columns = implode(', ', $this->getColumns($table));			
 
 				$this->pdo->query('INSERT INTO ' . $this->quote($table . $affix) . '(' . $columns . ') SELECT ' . $columns . ' FROM ' . $this->quote($table));
-				$this->pdo->query('DROP TABLE ' . $table );
+				$this->pdo->query('DROP TABLE IF EXISTS ' . $table );
 			}
 		}
 		catch (\PDOException $e) {
 			// No data to copy
 			echo $e->getMessage();
 		}
+
+		$this->pdo->query('DROP TABLE IF EXISTS ' . $table );
 		$this->pdo->query('ALTER TABLE ' . $table . $affix. ' RENAME TO '. $table );
+
 	}
 
 	public function createTable($table, array $primaryKey, $data) {
@@ -177,8 +190,24 @@ class SqliteAdapter implements DatabaseAdapter {
 		}
 	}
 	
+
 	public function addIndex($table, array $fields) {
-		//TODO
+		if (empty($fields)) return false;
+		
+		//SQLite doesn't support ASC/DESC indexes, remove the keywords
+		foreach ($fields as &$field) $field = str_ireplace([' desc', ' asc'], '', $field);
+		sort($fields);
+		$fields = array_map('strtolower', $fields);
+		$fields = array_map('trim', $fields);
+		$keyName = implode('_', $fields);
+	
+		
+		try {
+			$this->pdo->query('CREATE INDEX IF NOT EXISTS  ' . $keyName . ' ON ' . $table . ' (' . implode(', ', $fields) . ')');
+		}
+		catch (\Exception $e) {
+			
+		}
 	}
 	
 	public function optimiseColumns($table) {

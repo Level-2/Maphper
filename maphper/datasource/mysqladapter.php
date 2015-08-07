@@ -135,7 +135,7 @@ class MySqlAdapter implements DatabaseAdapter {
 		$keyName = $this->quote(implode('_', $fields));
 		
 		$results = $this->pdo->query('SHOW INDEX FROM ' . $this->quote($table) . ' WHERE Key_Name = "' . $keyName . '"');
-		if ($results && count($results->fetchAll()) == 0)  $this->pdo->query('CREATE INDEX ' . $keyName . ' ON ' . $this->quote($table) . '(' . implode(', ', $fields) . ')');
+		if ($results && count($results->fetchAll()) == 0)  $this->pdo->query('CREATE INDEX ' . $keyName . ' ON ' . $this->quote($table) . ' (' . implode(', ', $fields) . ')');
 	}
 	
 	public function optimiseColumns($table) {
