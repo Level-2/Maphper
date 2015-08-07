@@ -563,7 +563,7 @@ To model this relationship using Maphper first set up the standard `actor` and `
 
 ```php
 $actors = new \Maphper\Maphper(new \Maphper\Datasource\Database($pdo, 'actor', 'id'));
-$movies = new \Maphper\Maphper(new \Maphper\Datasource\Database($pdo, 'actor', 'id'));
+$movies = new \Maphper\Maphper(new \Maphper\Datasource\Database($pdo, 'movie', 'id'));
 ```
 
 Then add a table for the intermediate table. Note this requires two primary keys, one for the `actorId` and one for the `movieId`
