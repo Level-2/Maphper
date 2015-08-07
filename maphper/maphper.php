@@ -122,7 +122,6 @@ class Maphper implements \Countable, \ArrayAccess, \Iterator {
 			return $object;
 		}
 		else if (is_object($object)) {
-
 			//see if any relations need overwriting
 			foreach ($this->relations as $name => $relation) {
 				if (isset($object->$name)) {					
@@ -131,12 +130,9 @@ class Maphper implements \Countable, \ArrayAccess, \Iterator {
 				}
 				$object->$name = $relation->getData($object); 
 			}			
-									//	if (isset($object->debug)) return;
-			//$new->__maphperRelationsAttached = $this;
 			
 			return $object;
 		}
-		//return $object;
 	}
 
 	public function getErrors() {
