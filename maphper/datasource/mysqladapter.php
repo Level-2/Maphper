@@ -18,7 +18,7 @@ class MySqlAdapter implements DatabaseAdapter {
 		$queryId = md5($sql);
 		if (isset($this->queryCache[$queryId])) $stmt = $this->queryCache[$queryId];
 		else {
-			$stmt = $this->pdo->prepare($query->getSql(), [\PDO::ATTR_CURSOR => \PDO::CURSOR_FWDONLY]);			
+			$stmt = $this->pdo->prepare($sql, [\PDO::ATTR_CURSOR => \PDO::CURSOR_FWDONLY]);			
 			if ($stmt) $this->queryCache[$queryId] = $stmt;
 		}
 		return $stmt;
