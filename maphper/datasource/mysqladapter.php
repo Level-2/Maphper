@@ -26,7 +26,7 @@ class MySqlAdapter implements DatabaseAdapter {
 
 	public function query(\Maphper\DataSource\Database\Query $query) {
 		$stmt = $this->getCachedStmt($query->getSql());
-	
+		$args = $query->getArgs();
 		foreach ($args as &$arg) if ($arg instanceof \DateTime) $arg = $arg->format('Y-m-d H:i:s');
 		$res = $stmt->execute($args);
 		
@@ -43,7 +43,8 @@ class MySqlAdapter implements DatabaseAdapter {
 	}
 	
 	//Alter the database so that it can store $data
-	public function alterDatabase($table, array $primaryKey, $data) {		
+
+	private function createTable($table, array $primaryKey, $data) {
 		$parts = [];
 		foreach ($primaryKey as $key) {
 			$pk = $data->$key;
@@ -53,6 +54,10 @@ class MySqlAdapter implements DatabaseAdapter {
 		
 		$pkField = implode(', ', $parts) . ', PRIMARY KEY(' . implode(', ', $primaryKey) . ')';
 		$this->pdo->query('CREATE TABLE IF NOT EXISTS ' . $table . ' (' . $pkField . ')');
+	}
+
+	public function alterDatabase($table, array $primaryKey, $data) {		
+		$this->createTable($table, $primaryKey, $data);
 
 		foreach ($data as $key => $value) {
 			if (is_array($value) || (is_object($value) && !($value instanceof \DateTime))) continue;	
