@@ -10,7 +10,7 @@ class DateInjector {
 		if (is_object($obj) && $this->processCache->contains($obj)) return $obj;
 		else if (is_object($obj)) $this->processCache->attach($obj, true);
 
-		if (is_array($obj) || (is_object($obj) && (!$obj instanceof \Iterator))) foreach ($obj as &$o) $o = $this->processDates($o, false);
+		if (is_array($obj) || (is_object($obj) && (!$obj instanceof \Iterator))) foreach ($obj as &$o) $o = $this->replaceDates($o, false);
 		if (is_string($obj) && is_numeric($obj[0]) && strlen($obj) <= 20) {
 			try {
 				$date = new \DateTime($obj);
