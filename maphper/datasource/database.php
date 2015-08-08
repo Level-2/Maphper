@@ -56,7 +56,7 @@ class Database implements \Maphper\DataSource {
 	public function findById($id) {
 		if (!isset($this->cache[$id])) {
 			try {
-				$result = $this->adapter->query($this->queryBuilder->select($this->table, [$this->getPrimaryKey()[0] . ' = :id'], [':id' => $id], null, 1));
+				$result = $this->adapter->query($this->queryBuilder->select($this->table, [$this->getPrimaryKey()[0] . ' = :id'], [':id' => $id], ['limit' => 1]));
 			}
 			catch (\Exception $e) {
 				$this->errors[] = $e;
@@ -100,15 +100,15 @@ class Database implements \Maphper\DataSource {
 		$cacheId = md5(serialize(func_get_args()));	
 		if (!isset($this->resultCache[$cacheId])) {
 			$query = $this->queryBuilder->selectBuilder($fields, \Maphper\Maphper::FIND_EXACT | \Maphper\Maphper::FIND_AND);
-			$limit = (isset($options['limit'])) ? $options['limit'] : null;
-			$offset = (isset($options['offset'])) ? $options['offset'] : '';	
-			$order = (!isset($options['order'])) ? $this->defaultSort : $order = $options['order'];
+			
+			if (!isset($options['order'])) $options['order'] = $this->defaultSort;
+			
 			$query['sql'] = array_filter($query['sql']);
 
 			try {
-				$this->resultCache[$cacheId] = $this->adapter->query($this->queryBuilder->select($this->table, $query['sql'], $query['args'], $order, $limit, $offset));
+				$this->resultCache[$cacheId] = $this->adapter->query($this->queryBuilder->select($this->table, $query['sql'], $query['args'], $options));
 				$this->addIndex(array_keys($query['args']));
-				$this->addIndex(explode(',', $order));
+				$this->addIndex(explode(',', $options['order']));
 			}
 			catch (\Exception $e) {
 				$this->errors[] = $e;

@@ -11,15 +11,18 @@ class QueryBuilder {
 		return new Query('DELETE FROM ' . $table . ' WHERE ' . implode(' AND ', $criteria) . $limit . $offset, $args);
 	}
 
-	public function select($table, array $criteria, $args, $ord = null, $limit = null, $offset = null) {
+	public function select($table, array $criteria, $args, $options = []) {
 		$where = count($criteria) > 0 ? ' WHERE ' . implode(' AND ', $criteria) : '';
-		$limit = $limit ? ' LIMIT ' . $limit : '';  
+		//$limit = $limit ? ' LIMIT ' . $limit : ''; 
+		$limit = (isset($options['limit'])) ? ' LIMIT ' . $options['limit'] : '';
 		
-		if ($offset) {
-			$offset = $offset ? ' OFFSET ' . $offset : '';
+		if (isset($options['offset'])) {
+			$offset = ' OFFSET ' . $options['offset'];
 			if (!$limit) $limit = ' LIMIT  1000';
 		}
-		$order = $ord ? ' ORDER BY ' . $ord : '';
+		else $offset = '';
+
+		$order = isset($options['order']) ? ' ORDER BY ' . $options['order'] : '';
 		return new Query('SELECT * FROM ' . $table . ' ' . $where . $order . $limit . $offset, $args);
 	}
 	
