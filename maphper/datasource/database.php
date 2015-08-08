@@ -103,7 +103,7 @@ class Database implements \Maphper\DataSource {
 			$limit = (isset($options['limit'])) ? $options['limit'] : null;
 			$offset = (isset($options['offset'])) ? $options['offset'] : '';	
 			$order = (!isset($options['order'])) ? $this->defaultSort : $order = $options['order'];
-			if ($query['sql'][0] == '') $query['sql'] = [];
+			$query['sql'] = array_filter($query['sql']);
 
 			try {
 				$this->resultCache[$cacheId] = $this->adapter->query($this->queryBuilder->select($this->table, $query['sql'], $query['args'], $order, $limit, $offset));
