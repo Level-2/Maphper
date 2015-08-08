@@ -75,7 +75,7 @@ class Database implements \Maphper\DataSource {
 
 		try {
 			$this->addIndex(array_keys($query['args']));
-			if ($group) $this->addIndex(explode(',', $group));
+			$this->addIndex(explode(',', $group));
 			$result = $this->adapter->query($this->queryBuilder->aggregate($this->table, $function, $field, $query['sql'], $query['args'], $group));
 
 			if (isset($result[0]) && $group == null) return $result[0]->val;
@@ -171,15 +171,15 @@ class Database implements \Maphper\DataSource {
 	}
 
 	private function insert($table, array $primaryKey, $data) {
-		$error = false;
+		$error = 0;
 		try {
 			$result = $this->adapter->query($this->queryBuilder->insert($table, $data));	
 		}
 		catch (\Exception $e) {
-			$error = true;
+			$error = 1;
 		}
 				
- 		if ($error === true || $result->errorCode() > 0) $result = $this->adapter->query($this->queryBuilder->update($table, $primaryKey, $data));
+ 		if ($error + $result->errorCode() > 0) $result = $this->adapter->query($this->queryBuilder->update($table, $primaryKey, $data));
 		return $result;
 	}
 }
