@@ -93,8 +93,9 @@ class QueryBuilder {
 				continue;
 			}
 			else {
-				if (\Maphper\Maphper::FIND_EXACT & $mode) $operator = '=';
-				else if (\Maphper\Maphper::FIND_LIKE & $mode) {
+				$operator = '=';
+		
+				if (\Maphper\Maphper::FIND_LIKE & $mode) {
 					$operator = 'LIKE';
 					$value = '%' . $value . '%';
 				}
@@ -102,13 +103,12 @@ class QueryBuilder {
 					$operator = 'LIKE';
 					$value = $value . '%';
 				}
-				else if (\Maphper\Maphper::FIND_NOCASE & $mode) {
-					$operator = 'LIKE';
-				}
+				else if (\Maphper\Maphper::FIND_NOCASE & $mode) $operator = 'LIKE';
 				else if (\Maphper\Maphper::FIND_BIT & $mode) $operator = '&';
 				else if (\Maphper\Maphper::FIND_GREATER & $mode) $operator = '>';
 				else if (\Maphper\Maphper::FIND_LESS & $mode) $operator = '<';
 				else if (\Maphper\Maphper::FIND_NOT & $mode) $operator = '!=';
+
 				
 				$args[$key] = $value;
 				$sql[] = $this->quote($key) . ' ' . $operator . ' :' . $key;
