@@ -14,7 +14,6 @@ class Database implements \Maphper\DataSource {
 	private $errors = [];
 	private $alterDb = false;	
 	private $adapter;
-	private $processCache;
 	private $queryBuilder;
 	
 	public function __construct($db, $table, $primaryKey = 'id', array $options = []) {
@@ -45,28 +44,15 @@ class Database implements \Maphper\DataSource {
 		unset($this->cache[$id]);
 	}
 		
-	public function processDates($obj, $reset = true) {
-		//prevent infinite recursion
-		if ($reset) $this->processCache = new \SplObjectStorage();
-		if (is_object($obj) && $this->processCache->contains($obj)) return $obj;
-		else if (is_object($obj)) $this->processCache->attach($obj, true);
-
-		if (is_array($obj) || (is_object($obj) && (!$obj instanceof \Iterator))) foreach ($obj as &$o) $o = $this->processDates($o, false);
-		if (is_string($obj) && is_numeric($obj[0]) && strlen($obj) <= 20) {
-			try {
-				$date = new \DateTime($obj);
-				if ($date->format('Y-m-d H:i:s') == substr($obj, 0, 20)) $obj = $date;
-			}
-			catch (\Exception $e) {	//Doesn't need to do anything as the try/catch is working out whether $obj is a date
-			}
-		}
-		return $obj;
-	}
-	
 	public function getErrors() {
 		return $this->errors;
 	}	
 		
+	public function processDates($obj) {
+		$injector = new DateInjector;
+		return $injector->replaceDates($obj);
+	}
+
 	public function findById($id) {
 		if (!isset($this->cache[$id])) {
 			try {
