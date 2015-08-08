@@ -8,7 +8,7 @@ class SelectBuilder {
 		
 		foreach ($fields as $key => $value) {
 			if (is_numeric($key) && is_array($value)) {
-				$result = $this->selectBuilder($value, $key);
+				$result = $this->createSql($value, $key);
 				foreach ($result['args'] as $arg_key => $arg) $args[$arg_key] = $arg;
 				foreach ($result['sql'] as $arg) $sql[] = $arg;
 				continue;
@@ -57,7 +57,6 @@ class SelectBuilder {
 		
 		if (\Maphper\Maphper::FIND_OR & $mode) $query = implode(' OR  ', $sql);
 		else $query = implode(' AND ', $sql);
-		
 		return ['args' => $args, 'sql' => [$query]];
 	}
 }
