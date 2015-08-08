@@ -14,13 +14,18 @@ class MySqlAdapter implements DatabaseAdapter {
 		return '`' . str_replace('.', '`.`', trim($str, '`')) . '`';
 	}
 
-	public function query(\Maphper\DataSource\Database\Query $query) {
-		$queryId = md5($query->getSql());
+	private function getCachedStmt($sql) {
+		$queryId = md5($sql);
 		if (isset($this->queryCache[$queryId])) $stmt = $this->queryCache[$queryId];
 		else {
 			$stmt = $this->pdo->prepare($query->getSql(), [\PDO::ATTR_CURSOR => \PDO::CURSOR_FWDONLY]);			
 			if ($stmt) $this->queryCache[$queryId] = $stmt;
 		}
+		return $stmt;
+	}
+
+	public function query(\Maphper\DataSource\Database\Query $query) {
+		$stmt = $this->getCachedStmt($query->getSql());
 	
 		$args = $query->getArgs();		
 		foreach ($args as &$arg) if ($arg instanceof \DateTime) $arg = $arg->format('Y-m-d H:i:s');
@@ -37,9 +42,8 @@ class MySqlAdapter implements DatabaseAdapter {
 		if ($val instanceof \DateTime) return 'DATETIME';
 		else if (is_int($val)) return  'INT(11)';
 		else if (is_double($val)) return 'DECIMAL(9,' . strlen($val) - strrpos($val, '.') - 1 . ')';
-		else if (is_string($val) && strlen($val) < 256) return 'VARCHAR(255)';
-		else if (is_string($val) && strlen($val) > 256) return 'LONGBLOB';
-		else return 'VARCHAR(255)';		
+		else if (is_string($val)) return strlen($val) < 256 ? 'VARCHAR(255)' : 'LONGBLOB';
+		return 'VARCHAR(255)';		
 	}
 	
 	//Alter the database so that it can store $data
