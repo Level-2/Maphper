@@ -7,7 +7,8 @@ class QueryBuilder {
 
 	public function delete($table, array $criteria, $args, $limit = null, $offset = null) {
 		$limit = $limit ? ' LIMIT ' . $limit : '';
-		return new Query('DELETE FROM ' . $table . ' WHERE ' . implode(' AND ', $criteria) . $limit, $args);
+		$offset = $offset ? ' OFFSET ' . $offset : '';
+		return new Query('DELETE FROM ' . $table . ' WHERE ' . implode(' AND ', $criteria) . $limit . $offset, $args);
 	}
 
 	public function select($table, array $criteria, $args, $ord = null, $limit = null, $offset = null) {
@@ -49,7 +50,7 @@ class QueryBuilder {
 		return ['sql' => $sql, 'args' => $args];
 	}
 	
-	public function insert($table, array $primaryKey, $data) {
+	public function insert($table, $data) {
 		$query = $this->buildSaveQuery($data);
 		return new Query('INSERT INTO ' . $this->quote($table) . ' (' .implode(', ', array_keys($query['args'])).') VALUES ( ' . implode(', ', $query['sql']). ' )', $query['args']);
 	}

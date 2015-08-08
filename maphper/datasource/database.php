@@ -187,13 +187,13 @@ class Database implements \Maphper\DataSource {
 	private function insert($table, array $primaryKey, $data) {
 		$error = false;
 		try {
-			$result = $this->adapter->query($this->queryBuilder->insert($table, $primaryKey, $data));	
+			$result = $this->adapter->query($this->queryBuilder->insert($table, $data));	
 		}
 		catch (\Exception $e) {
 			$error = true;
 		}
 				
- 		if ($error == true || $result->errorCode() > 0) $result = $this->adapter->query($this->queryBuilder->update($table, $primaryKey, $data));
+ 		if ($error === true || $result->errorCode() > 0) $result = $this->adapter->query($this->queryBuilder->update($table, $primaryKey, $data));
 		return $result;
 	}
 }
