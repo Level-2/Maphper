@@ -6,87 +6,33 @@ class MySqlAdapter implements DatabaseAdapter {
 	
 	public function __construct(\PDO $pdo) {
 		$this->pdo = $pdo;
-		//Set to strict mode to detect 'out of range' errors, action at a distance but it needs to be set for all INSERT queries		
+		//Set to strict mode to detect 'out of range' errors, action at a distance but it needs to be set for all INSERT queries
 		$this->pdo->query('SET sql_mode = STRICT_ALL_TABLES');
 	}
-	
+		
 	public function quote($str) {
 		return '`' . str_replace('.', '`.`', trim($str, '`')) . '`';
 	}
-	
-	public function delete($table, array $criteria, $args, $limit = null, $offset = null) {
-		$limit = $limit ? ' LIMIT ' . $limit : '';
-		$this->query('DELETE FROM ' . $table . ' WHERE ' . implode(' AND ', $criteria) . $limit, $args);
-	}
-	
-	public function select($table, array $criteria, $args, $order = null, $limit = null, $offset = null) {
-		$where = count($criteria) > 0 ? ' WHERE ' . implode(' AND ', $criteria) : '';
-		$limit = $limit ? ' LIMIT ' . $limit : '';  
-		
-		if ($offset) {
-			$offset = $offset ? ' OFFSET ' . $offset : '';
-			if (!$limit) $limit = ' LIMIT  1000';
-		}
-		
-		$order = $order ? ' ORDER BY ' . $order : '';  	
-		return $this->query('SELECT * FROM ' . $table . ' ' . $where . $order . $limit . $offset, $args);
-	}
-	
-	public function aggregate($table, $function, $field, $where, $args, $group) {
-		if ($group == true) $groupBy = ' GROUP BY ' . $field;
-		else $groupBy = '';
-		$result = $this->query('SELECT ' . $function . '(' . $field . ') as val, ' . $field . '   FROM ' . $table . ($where[0] != null ? ' WHERE ' : '') . implode(' AND ', $where) . ' ' . $groupBy, $args);
 
-		if (isset($result[0]) && $group == null) return $result[0]->val;
-		else if ($group != null) {
-			$ret = [];
-			foreach ($result as $res) $ret[$res->$field] = $res->val;
-			return $ret;
-		}
-		else return 0;
-	}
-	
-	private function buildSaveQuery($data, $affix = '') {
-		$sql = [];
-		$args = [];
-		foreach ($data as $field => $value) {
-			//For dates with times set, search on time, if the time is not set, search on date only.
-			//E.g. searching for all records posted on '2015-11-14' should return all records that day, not just the ones posted at 00:00:00 on that day
-			if ($value instanceof \DateTime) {
-				if ($value->format('H:i:s')  == '00:00:00') $value = $value->format('Y-m-d');
-				else $value = $value->format('Y-m-d H:i:s');
-			}
-			if (is_object($value)) continue;
-			$sql[] = $this->quote($field) . ' = :' . $field . $affix;
-			$args[$field . $affix] = $value;
-		}
-		return ['sql' => $sql, 'args' => $args];
-	}
-	
-	public function insert($table, array $primaryKey, $data) {
-		$query = $this->buildSaveQuery($data);
-		$query1 = $this->buildSaveQuery($data, 1);
-		return $this->query('INSERT INTO ' . $table . ' SET ' . implode(',', $query['sql']) . ' ON DUPLICATE KEY UPDATE ' . implode(',', $query1['sql']), array_merge($query['args'], $query1['args']));
-	}
-	
-	private function query($query, $args = []) {
-		$queryId = md5($query);
-		
+	public function query(\Maphper\DataSource\Database\Query $query) {
+		$queryId = md5($query->getSql());
 		if (isset($this->queryCache[$queryId])) $stmt = $this->queryCache[$queryId];
 		else {
-			$stmt = $this->pdo->prepare($query, [\PDO::ATTR_CURSOR => \PDO::CURSOR_FWDONLY]);			
+			$stmt = $this->pdo->prepare($query->getSql(), [\PDO::ATTR_CURSOR => \PDO::CURSOR_FWDONLY]);			
 			if ($stmt) $this->queryCache[$queryId] = $stmt;
 		}
-		
+	
+		$args = $query->getArgs();		
 		foreach ($args as &$arg) if ($arg instanceof \DateTime) $arg = $arg->format('Y-m-d H:i:s');
+
 
 		if (count($args) > 0) $res = $stmt->execute($args);
 		else $res = $stmt->execute();
 		
-		if (strpos(trim($query), 'SELECT') === 0) return $stmt->fetchAll(\PDO::FETCH_OBJ);
-		else return $stmt;			
+		if (strpos(trim($query->getSql()), 'SELECT') === 0) return $stmt->fetchAll(\PDO::FETCH_OBJ);
+		else return $stmt;	
 	}
-	
+
 	private function getType($val) {
 		if ($val instanceof \DateTime) return 'DATETIME';
 		else if (is_int($val)) return  'INT(11)';

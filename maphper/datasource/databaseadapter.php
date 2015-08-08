@@ -1,6 +1,7 @@
 <?php 
 namespace Maphper\DataSource;
 interface DatabaseAdapter {
+	/*
 	public function quote($str);
 	public function delete($table, array $criteria, $args, $limit = null, $offset = null);
 	public function select($table, array $criteria, $args, $order = null, $limit = null, $offset = null);
@@ -9,4 +10,5 @@ interface DatabaseAdapter {
 	public function alterDatabase($table, array $primaryKey, $data);
 	public function addIndex($table, array $fields);
 	public function lastInsertId();
+	*/
 }

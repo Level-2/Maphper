@@ -12,83 +12,16 @@ class SqliteAdapter implements DatabaseAdapter {
 	public function quote($str) {
 		return '`' . str_replace('.', '`.`', trim($str, '`')) . '`';
 	}
-	
-	public function delete($table, array $criteria, $args, $limit = null, $offset = null) {
-		$limit = $limit ? ' LIMIT ' . $limit : '';
-		$this->query('DELETE FROM ' . $table . ' WHERE ' . implode(' AND ', $criteria) . $limit, $args);
-	}
-	
-	public function select($table, array $criteria, $args, $order = null, $limit = null, $offset = null) {
-		$where = count($criteria) > 0 ? ' WHERE ' . implode(' AND ', $criteria) : '';
-				
-		$limit = $limit ? ' LIMIT ' . $limit : '';  
 		
-		if ($offset) {
-			$offset = $offset ? ' OFFSET ' . $offset : '';
-			if (!$limit) $limit = ' LIMIT  1000';
-		}	
-		
-		$order = $order ? ' ORDER BY ' . $order : '';	
-		return $this->query('SELECT * FROM ' . $table . ' ' . $where . $order . $limit . $offset, $args);
-	}
-	
-	public function aggregate($table, $function, $field, $where, $args, $group) {
-		if ($group == true) $groupBy = ' GROUP BY ' . $field;
-		else $groupBy = '';
-		$result = $this->query('SELECT ' . $function . '(' . $field . ') as val, ' . $field . '	  FROM ' . $table . ($where[0] != null ? ' WHERE ' : '') . implode(' AND ', $where) . ' ' . $groupBy, $args);
-
-		if (isset($result[0]) && $group == null) return $result[0]->val;
-		else if ($group != null) {
-			$ret = [];
-			foreach ($result as $res) $ret[$res->$field] = $res->val;
-			return $ret;
-		}
-		else return 0;
-	}
-	
-	private function buildSaveQuery($data, $prependField = false) {
-		$sql = [];
-		$args = [];
-		foreach ($data as $field => $value) {
-			//For dates with times set, search on time, if the time is not set, search on date only.
-			//E.g. searching for all records posted on '2015-11-14' should return all records that day, not just the ones posted at 00:00:00 on that day
-			if ($value instanceof \DateTime) {
-				if ($value->format('H:i:s')  == '00:00:00') $value = $value->format('Y-m-d');
-				else $value = $value->format('Y-m-d H:i:s');
-			}
-			if (is_object($value)) continue;
-			if ($prependField){
-				$sql[] = $this->quote($field) . ' = :' . $field;
-			} else {
-				$sql[] = ':' . $field;
-			}
-			$args[$field] = $value;			
-		}
-		return ['sql' => $sql, 'args' => $args];
-	}
-	
-	public function insert($table, array $primaryKey, $data) {
-		$query = $this->buildSaveQuery($data);
-		$result = $this->query('INSERT INTO ' . $this->quote($table) . ' ('.implode(', ', array_keys($query['args'])).') VALUES ( ' . implode(', ', $query['sql']). ' )', $query['args']);
-		
- 		if ($result->errorCode() > 0) {
-			$query = $this->buildSaveQuery($data, true);
-			$where = [];
-			foreach($primaryKey as $field) $where[] = $this->quote($field) . ' = :' . $field;
-			$result = $this->query('UPDATE ' . $this->quote($table) . ' SET ' . implode(', ', $query['sql']). ' WHERE '. implode(' AND ', $where), $query['args']);
-		}
-
-		return $result;
-	}
-		
-	private function query($query, $args = []) {
-		$queryId = md5($query);
+	public function query(\Maphper\DataSource\Database\Query $query) {
+		$queryId = md5($query->getSql());
 		if (isset($this->queryCache[$queryId])) $stmt = $this->queryCache[$queryId];
 		else {
-			$stmt = $this->pdo->prepare($query, [\PDO::ATTR_CURSOR => \PDO::CURSOR_FWDONLY]);
+			$stmt = $this->pdo->prepare($query->getSql(), [\PDO::ATTR_CURSOR => \PDO::CURSOR_FWDONLY]);
 			if ($stmt) $this->queryCache[$queryId] = $stmt;
 		}
 		
+		$args = $query->getArgs();
 		foreach ($args as &$arg) if ($arg instanceof \DateTime) {
 			if ($arg->format('H:i:s')  == '00:00:00') $arg = $arg->format('Y-m-d');
 			else $arg = $arg->format('Y-m-d H:i:s');
@@ -98,14 +31,14 @@ class SqliteAdapter implements DatabaseAdapter {
 			try {
 				if (count($args) > 0) $res = $stmt->execute($args);
 				else $res = $stmt->execute();
-				if (substr($query, 0, 6) === 'SELECT') return $stmt->fetchAll(\PDO::FETCH_OBJ);
+				if (substr($query->getSql(), 0, 6) === 'SELECT') return $stmt->fetchAll(\PDO::FETCH_OBJ);
 				else return $stmt;
 			}
 			catch (\Exception $e) {
 				//SQLite causes an error if when the DB schema changes, rebuild $stmt and try again.
 				if ($e->getMessage() == 'SQLSTATE[HY000]: General error: 17 database schema has changed') {
 					unset($this->queryCache[$queryId]);
-					return $this->query($query, $args);	
+					return $this->query($query);	
 				}
 				else return $stmt;				
 			}

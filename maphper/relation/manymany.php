@@ -37,11 +37,11 @@ class ManyMany implements \Iterator, \ArrayAccess, \Countable, \Maphper\Relation
 	//bit hacky, breaking encapsulation, but simplest way to work out the info for the other side of the many:many relationship.
 	private function getOtherFieldNameInfo() {
 		if ($this->otherInfo == null) {
-			$propertyReader = function($name) {
-				return $this->$name;
-			};
-			
-			foreach ($this->intermediateMapper->getRelations() as $relation) {		
+			$propertyReader = function($name) {return $this->$name;	};
+
+			$reader = $propertyReader->bindTo($this->intermediateMapper, $this->intermediateMapper);
+
+			foreach ($reader('relations') as $relation) {		
 				$propertyReader = $propertyReader->bindTo($relation, $relation);
 				if ($propertyReader('parentField') != $this->parentField) {
 					$relation = $relation->getData($this->object);					
@@ -73,7 +73,7 @@ class ManyMany implements \Iterator, \ArrayAccess, \Countable, \Maphper\Relation
 	
 	public function item($i) {
 		if (empty($this->results)) $this->rewind();
-		if (!isset($this->results[$i])) throw new Exception('Item does not exist');
+		if (!isset($this->results[$i])) throw new \Exception('Item does not exist');
 		else {
 			if ($this->autoTraverse) return $this->results[$i]->{$this->intermediateName};
 			else return $this->results[$i];

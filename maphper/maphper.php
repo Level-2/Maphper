@@ -1,19 +1,19 @@
 <?php 
 namespace Maphper;
 class Maphper implements \Countable, \ArrayAccess, \Iterator {
-	const FIND_EXACT 	= 	0x1;
-	const FIND_LIKE 	= 	0x2;
-	const FIND_STARTS 	= 	0x4;
-	const FIND_ENDS 	= 	0x8;
-	const FIND_BIT 		= 	0x10;
-	const FIND_GREATER 	= 	0x20;
-	const FIND_LESS 	=	0x40;
-	const FIND_EXPRESSION = 0x80;
-	const FIND_AND 		= 0x100;
-	const FIND_OR 		= 0x200;
-	const FIND_NOT 		= 0x400;
-	const FIND_BETWEEN	= 0x800;
-	const FIND_NOCASE	= 0x1000;
+	const FIND_EXACT 		= 	0x1;
+	const FIND_LIKE 		= 	0x2;
+	const FIND_STARTS 		= 	0x4;
+	const FIND_ENDS 		= 	0x8;
+	const FIND_BIT 			= 	0x10;
+	const FIND_GREATER 		= 	0x20;
+	const FIND_LESS 		=	0x40;
+	const FIND_EXPRESSION 	= 	0x80;
+	const FIND_AND 			= 	0x100;
+	const FIND_OR 			= 	0x200;
+	const FIND_NOT 			= 	0x400;
+	const FIND_BETWEEN		= 	0x800;
+	const FIND_NOCASE		= 	0x1000;
 	
 	private $dataSource;
 	private $relations = [];	
@@ -21,9 +21,9 @@ class Maphper implements \Countable, \ArrayAccess, \Iterator {
 	private $array = [];
 	private $iterator = 0;
 
-	public function __construct(DataSource $dataSource, array $settings = null, array $relations = []) {
+	public function __construct(DataSource $dataSource, array $settings = [], array $relations = []) {
 		$this->dataSource = $dataSource;
-		if ($settings) $this->settings = array_replace($this->settings, $settings);
+		$this->settings = array_replace($this->settings, $settings);
 		$this->relations = $relations;		
 	}
 	
@@ -31,10 +31,6 @@ class Maphper implements \Countable, \ArrayAccess, \Iterator {
 		$this->relations[$name] = $relation;
 	}
 
-	public function getRelations() {
-		return $this->relations;
-	}
-	
 	public function count($group = null) {
 		return $this->dataSource->findAggregate('count', $group == null ? $this->dataSource->getPrimaryKey() : $group, $group, $this->settings['filter']);
 	}
@@ -75,17 +71,13 @@ class Maphper implements \Countable, \ArrayAccess, \Iterator {
 		return $value;
 	}
 
-	public function offsetSet($offset, $value) {
-	
+	public function offsetSet($offset, $value) {	
 		$value = $this->processFilters($value);
-
 		$pk = $this->dataSource->getPrimaryKey();
 		if ($offset !== null) $value->{$pk[0]} = $offset;
-
 		$this->dataSource->save($value);
 		$value = $this->wrap($value);
 	}
-
 	
 	public function offsetExists($offset) {
 		return (bool) $this->dataSource->findById($offset);
@@ -96,47 +88,30 @@ class Maphper implements \Countable, \ArrayAccess, \Iterator {
 	}
 
 	public function offsetGet($offset) {
-		if (isset($offset)) {
-			if (count($this->dataSource->getPrimaryKey()) > 1) return new MultiPk($this, $offset, $this->dataSource->getPrimaryKey());			
-			return $this->wrap($this->createNew($this->dataSource->findById($offset)));
-		}
-		else {
-			$obj = $this->createNew();
-			foreach ($this->dataSource->getPrimaryKey() as $k) $obj->$k = null;
-			return $this->wrap($obj);
-		}
+		if (count($this->dataSource->getPrimaryKey()) > 1) return new MultiPk($this, $offset, $this->dataSource->getPrimaryKey());			
+		return $this->wrap($this->createNew($this->dataSource->findById($offset)));
 	}
 
-	public function createNew($data = []) {
-
+	private function createNew($data = []) {
 		$obj = (is_callable($this->settings['resultClass'])) ? call_user_func($this->settings['resultClass']) : new $this->settings['resultClass'];
 		$writeClosure = function($field, $value) {	$this->$field = $value;	};			
 		$write = $writeClosure->bindTo($obj, $obj);
 		if ($data != null) {
 			foreach ($data as $key => $value) $write($key, $this->dataSource->processDates($value));			
 		}
-
 		return $obj;		
 	}
 	
 	private function wrap($object) {
-
-		if (is_array($object)) {
-			foreach ($object as &$o) $this->wrap($o);
-			return $object;
-		}
-		else if (is_object($object)) {
-			//see if any relations need overwriting
-			foreach ($this->relations as $name => $relation) {
-				if (isset($object->$name)) {					
-					//After overwriting the relation, does the parent object ($object) need overwriting as well?
-					if ($relation->overwrite($object, $object->$name)) $this[] = $object;
-				}
-				$object->$name = $relation->getData($object); 
-			}			
-			
-			return $object;
-		}
+		//see if any relations need overwriting
+		foreach ($this->relations as $name => $relation) {
+			if (isset($object->$name)) {					
+				//After overwriting the relation, does the parent object ($object) need overwriting as well?
+				if ($relation->overwrite($object, $object->$name)) $this[] = $object;
+			}
+			$object->$name = $relation->getData($object); 
+		}			
+		return $object;		
 	}
 
 	public function getErrors() {
