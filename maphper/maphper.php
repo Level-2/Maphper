@@ -113,10 +113,6 @@ class Maphper implements \Countable, \ArrayAccess, \Iterator {
 		}			
 		return $object;		
 	}
-
-	public function getErrors() {
-		return $this->dataSource->getErrors();
-	}
 	
 	public function __call($method, $args) {
 		if (array_key_exists($method, $this->settings)) {
