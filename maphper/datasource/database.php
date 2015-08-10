@@ -14,15 +14,17 @@ class Database implements \Maphper\DataSource {
 	private $errors = [];
 	private $alterDb = false;	
 	private $adapter;
-	private $queryBuilder;
+	private $crudBuilder;
 	
 	public function __construct($db, $table, $primaryKey = 'id', array $options = []) {
 		if ($db instanceof \PDO) $this->adapter = $this->getAdapter($db);
 		else $this->adapter = $db;
 		
-		$this->queryBuilder = isset($options['queryBuilder']) ? $options['queryBuilder'] : new \Maphper\DataSource\Database\QueryBuilder;
 		$this->table = $table;
 		$this->primaryKey = is_array($primaryKey) ? $primaryKey : [$primaryKey];
+
+		$this->crudBuilder = new \Maphper\Lib\CrudBuilder();
+		$this->selectBuilder = new \Maphper\Lib\SelectBuilder();
 
 		if (isset($options['fields'])) $this->fields = implode(',', array_map([$this->adapter, 'quote'], $options['fields']));
 		$this->defaultSort = (isset($options['defaultSort'])) ? $options['defaultSort'] : implode(', ', $this->primaryKey);
@@ -40,7 +42,7 @@ class Database implements \Maphper\DataSource {
 	}	
 	
 	public function deleteById($id) {
-		$this->adapter->query($this->queryBuilder->delete($this->table, [$this->primaryKey[0] . ' = :id'], [':id' => $id], 1));
+		$this->adapter->query($this->crudBuilder->delete($this->table, [$this->primaryKey[0] . ' = :id'], [':id' => $id], 1));
 		unset($this->cache[$id]);
 	}
 		
@@ -56,7 +58,7 @@ class Database implements \Maphper\DataSource {
 	public function findById($id) {
 		if (!isset($this->cache[$id])) {
 			try {
-				$result = $this->adapter->query($this->queryBuilder->select($this->table, [$this->getPrimaryKey()[0] . ' = :id'], [':id' => $id], ['limit' => 1]));
+				$result = $this->adapter->query($this->selectBuilder->select($this->table, [$this->getPrimaryKey()[0] . ' = :id'], [':id' => $id], ['limit' => 1]));
 			}
 			catch (\Exception $e) {
 				$this->errors[] = $e;
@@ -71,12 +73,12 @@ class Database implements \Maphper\DataSource {
 	public function findAggregate($function, $field, $group = null, array $criteria = [], array $options = []) {
 		//Cannot count/sum/max multiple fields, pick the first one. This should only come into play when trying to count() a mapper with multiple primary keys
 		if (is_array($field)) $field = $field[0];		
-		$query = $this->queryBuilder->selectBuilder($criteria, \Maphper\Maphper::FIND_EXACT | \Maphper\Maphper::FIND_AND);
+		$query = $this->selectBuilder->createSql($criteria, \Maphper\Maphper::FIND_EXACT | \Maphper\Maphper::FIND_AND);
 
 		try {
 			$this->addIndex(array_keys($query['args']));
 			$this->addIndex(explode(',', $group));
-			$result = $this->adapter->query($this->queryBuilder->aggregate($this->table, $function, $field, $query['sql'], $query['args'], $group));
+			$result = $this->adapter->query($this->selectBuilder->aggregate($this->table, $function, $field, $query['sql'], $query['args'], $group));
 
 			if (isset($result[0]) && $group == null) return $result[0]->val;
 			else if ($group != null) {
@@ -99,14 +101,14 @@ class Database implements \Maphper\DataSource {
 	public function findByField(array $fields, $options = []) {
 		$cacheId = md5(serialize(func_get_args()));	
 		if (!isset($this->resultCache[$cacheId])) {
-			$query = $this->queryBuilder->selectBuilder($fields, \Maphper\Maphper::FIND_EXACT | \Maphper\Maphper::FIND_AND);
+			$query = $this->selectBuilder->createSql($fields, \Maphper\Maphper::FIND_EXACT | \Maphper\Maphper::FIND_AND);
 			
 			if (!isset($options['order'])) $options['order'] = $this->defaultSort;
 			
 			$query['sql'] = array_filter($query['sql']);
 
 			try {
-				$this->resultCache[$cacheId] = $this->adapter->query($this->queryBuilder->select($this->table, $query['sql'], $query['args'], $options));
+				$this->resultCache[$cacheId] = $this->adapter->query($this->selectBuilder->select($this->table, $query['sql'], $query['args'], $options));
 				$this->addIndex(array_keys($query['args']));
 				$this->addIndex(explode(',', $options['order']));
 			}
@@ -123,8 +125,8 @@ class Database implements \Maphper\DataSource {
 		if (isset($options['limit']) != null) $limit = ' LIMIT ' . $options['limit'];
 		else $limit = '';
 
-		$query = $this->queryBuilder->selectBuilder($fields, $mode);
-		$this->adapter->query($this->queryBuilder->delete($this->table, $query['sql'], $query['args'], $limit));
+		$query = $this->selectBuilder->createSql($fields, $mode);
+		$this->adapter->query($this->crudBuilder->delete($this->table, $query['sql'], $query['args'], $limit));
 		$this->addIndex(array_keys($query['args']));
 
 		//Clear the cache
@@ -135,21 +137,14 @@ class Database implements \Maphper\DataSource {
 	public function save($data, $tryagain = true) {
 		$new = false;
 		foreach ($this->primaryKey as $k) {
-			if (!isset($data->$k) || $data->$k == '') {
+			if (empty($data->$k)) {
 				$data->$k = null;
 				$new = true;
 			}
 		}		
 		//Extract private properties from the object
-		$readClosure = function() {
-			$data = new \stdClass;
-			foreach ($this as $k => $v)	{
-				if (is_scalar($v) || is_null($v) || (is_object($v) && $v instanceof \DateTime))	$data->$k = $v;
-			}
-			return $data;
-		};
-		$read = $readClosure->bindTo($data, $data);
-		$writeData = $read();	
+		$propertyReader = new \Maphper\Lib\VisibilityOverride();		
+		$writeData = $propertyReader->getProperties($data);
 
 		try {
 			$result = $this->insert($this->table, $this->primaryKey, $writeData);
@@ -173,13 +168,13 @@ class Database implements \Maphper\DataSource {
 	private function insert($table, array $primaryKey, $data) {
 		$error = 0;
 		try {
-			$result = $this->adapter->query($this->queryBuilder->insert($table, $data));	
+			$result = $this->adapter->query($this->crudBuilder->insert($table, $data));	
 		}
 		catch (\Exception $e) {
 			$error = 1;
 		}
 				
- 		if ($error + $result->errorCode() > 0) $result = $this->adapter->query($this->queryBuilder->update($table, $primaryKey, $data));
+ 		if ($error || $result->errorCode() > 0) $result = $this->adapter->query($this->crudBuilder->update($table, $primaryKey, $data));
 		return $result;
 	}
 }

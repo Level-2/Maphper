@@ -1,6 +1,29 @@
 <?php
-namespace Maphper\Datasource\Database;
+namespace Maphper\Lib;
 class SelectBuilder {
+
+	public function select($table, array $criteria, $args, $options = []) {
+		$where = count($criteria) > 0 ? ' WHERE ' . implode(' AND ', $criteria) : '';
+		//$limit = $limit ? ' LIMIT ' . $limit : ''; 
+		$limit = (isset($options['limit'])) ? ' LIMIT ' . $options['limit'] : '';
+		
+		if (isset($options['offset'])) {
+			$offset = ' OFFSET ' . $options['offset'];
+			if (!$limit) $limit = ' LIMIT  1000';
+		}
+		else $offset = '';
+
+		$order = isset($options['order']) ? ' ORDER BY ' . $options['order'] : '';
+		return new Query('SELECT * FROM ' . $table . ' ' . $where . $order . $limit . $offset, $args);
+	}
+
+	public function aggregate($table, $function, $field, $where, $args, $group) {
+		if ($group == true) $groupBy = ' GROUP BY ' . $field;
+		else $groupBy = '';
+		return new Query('SELECT ' . $function . '(' . $field . ') as val, ' . $field . '   FROM ' . $table . ($where[0] != null ? ' WHERE ' : '') . implode(' AND ', $where) . ' ' . $groupBy, $args);
+	}
+	
+
 	//Needs to be broken up into better methods
 	public function createSql($fields, $mode){
 		$args = [];

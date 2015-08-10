@@ -24,7 +24,7 @@ class MySqlAdapter implements DatabaseAdapter {
 		return $stmt;
 	}
 
-	public function query(\Maphper\DataSource\Database\Query $query) {
+	public function query(\Maphper\Lib\Query $query) {
 		$stmt = $this->getCachedStmt($query->getSql());
 		$args = $query->getArgs();
 		foreach ($args as &$arg) if ($arg instanceof \DateTime) $arg = $arg->format('Y-m-d H:i:s');
@@ -43,7 +43,6 @@ class MySqlAdapter implements DatabaseAdapter {
 	}
 	
 	//Alter the database so that it can store $data
-
 	private function createTable($table, array $primaryKey, $data) {
 		$parts = [];
 		foreach ($primaryKey as $key) {

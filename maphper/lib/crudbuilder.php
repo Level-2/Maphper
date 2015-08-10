@@ -1,6 +1,6 @@
 <?php
-namespace Maphper\DataSource\Database;
-class QueryBuilder {
+namespace Maphper\Lib;
+class CrudBuilder {
 	private function quote($str) {
 		return '`' . str_replace('.', '`.`', trim($str, '`')) . '`';
 	}	
@@ -11,26 +11,6 @@ class QueryBuilder {
 		return new Query('DELETE FROM ' . $table . ' WHERE ' . implode(' AND ', $criteria) . $limit . $offset, $args);
 	}
 
-	public function select($table, array $criteria, $args, $options = []) {
-		$where = count($criteria) > 0 ? ' WHERE ' . implode(' AND ', $criteria) : '';
-		//$limit = $limit ? ' LIMIT ' . $limit : ''; 
-		$limit = (isset($options['limit'])) ? ' LIMIT ' . $options['limit'] : '';
-		
-		if (isset($options['offset'])) {
-			$offset = ' OFFSET ' . $options['offset'];
-			if (!$limit) $limit = ' LIMIT  1000';
-		}
-		else $offset = '';
-
-		$order = isset($options['order']) ? ' ORDER BY ' . $options['order'] : '';
-		return new Query('SELECT * FROM ' . $table . ' ' . $where . $order . $limit . $offset, $args);
-	}
-	
-	public function aggregate($table, $function, $field, $where, $args, $group) {
-		if ($group == true) $groupBy = ' GROUP BY ' . $field;
-		else $groupBy = '';
-		return new Query('SELECT ' . $function . '(' . $field . ') as val, ' . $field . '   FROM ' . $table . ($where[0] != null ? ' WHERE ' : '') . implode(' AND ', $where) . ' ' . $groupBy, $args);
-	}
 
 	private function buildSaveQuery($data, $prependField = false) {
 		$sql = [];
@@ -63,10 +43,5 @@ class QueryBuilder {
 		$where = [];
 		foreach($primaryKey as $field) $where[] = $this->quote($field) . ' = :' . $field;
 		return new Query('UPDATE ' . $this->quote($table) . ' SET ' . implode(', ', $query['sql']). ' WHERE '. implode(' AND ', $where), $query['args']);
-	}
-
-	public function selectBuilder($fields, $mode){
-		$selectBuilder = new SelectBuilder;
-		return $selectBuilder->createSql($fields, $mode);
 	}
 }

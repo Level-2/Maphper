@@ -1,5 +1,5 @@
 <?php
-namespace Maphper\DataSource\Database;
+namespace Maphper\Lib;
 class Query {
 	private $sql;
 	private $args = [];

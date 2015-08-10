@@ -13,7 +13,7 @@ class SqliteAdapter implements DatabaseAdapter {
 		return '`' . str_replace('.', '`.`', trim($str, '`')) . '`';
 	}
 		
-	public function query(\Maphper\DataSource\Database\Query $query) {
+	public function query(\Maphper\Lib\Query $query) {
 		$queryId = md5($query->getSql());
 		if (isset($this->queryCache[$queryId])) $stmt = $this->queryCache[$queryId];
 		else {
