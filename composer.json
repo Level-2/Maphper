@@ -1,9 +1,9 @@
 {
-    "name": "tombzombie/maphper",
+    "name": "level-2/maphper",
     "version": "1.0",
     "description": "A lightweight ORM using the DataMapper pattern, creates database tables on the fly.",
     "license": "BSD-2-Clause",
-    "homepage": "https://github.com/TomBZombie/Maphper",
+    "homepage": "https://github.com/Level-2/Maphper",
     "keywords": ["orm", "data mapper", "object relational mapper", "dba", "model"],
     "minimum-stability": "dev",
     "authors": [
