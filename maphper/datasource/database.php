@@ -33,7 +33,7 @@ class Database implements \Maphper\DataSource {
 	}
 
 	private function getAdapter(\PDO $pdo) {
-		$adapter = '\\Maphper\\DataSource\\' . $pdo->getAttribute(\PDO::ATTR_DRIVER_NAME) . 'Adapter';
+        $adapter = '\\Maphper\\DataSource\\' . ucfirst($pdo->getAttribute(\PDO::ATTR_DRIVER_NAME)) . 'Adapter';
 		return new $adapter($pdo);
 	}
 	
