@@ -50,4 +50,10 @@ class One implements \Maphper\Relation {
 			return true;
 		}		
 	}
+
+	public function getFilter($object) {
+	//	var_dump($object);
+	//	return [$this->parentField => $object->{$this->localField}];
+		return [];
+	}
 }

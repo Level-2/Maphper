@@ -32,7 +32,20 @@ class Maphper implements \Countable, \ArrayAccess, \Iterator {
 	}
 
 	public function count($group = null) {
+		$this->wrapFilter();
 		return $this->dataSource->findAggregate('count', $group == null ? $this->dataSource->getPrimaryKey() : $group, $group, $this->settings['filter']);
+	}
+
+	//Allow filter(['user' => $user]) where $user is an object instead of
+	//filter(['userId' => $user->id])
+	private function wrapFilter() {
+		foreach ($this->settings['filter'] as $name => $value) {
+			if (isset($this->relations[$name])) {
+				$filter = $this->relations[$name]->getFilter($value);
+				$this->settings['filter'] = array_merge($this->settings['filter'], $filter);
+				unset($this->settings['filter'][$name]);
+			}
+		}
 	}
 
 	public function current() {
@@ -55,6 +68,13 @@ class Maphper implements \Countable, \ArrayAccess, \Iterator {
 
 	public function rewind() {
 		$this->iterator = 0;
+
+		foreach ($this->settings['filter'] as $name => &$filter) {
+			
+			if (isset($this->relations[$name])) {
+				$this->relations[$name]->overwrite($filter, $filter[$name]);
+			}
+		}
 		if (empty($this->array)) $this->array = $this->dataSource->findByField($this->settings['filter'], ['order' => $this->settings['sort'], 'limit' => $this->settings['limit'], 'offset' => $this->settings['offset'] ]);
 	}
 	
@@ -72,11 +92,13 @@ class Maphper implements \Countable, \ArrayAccess, \Iterator {
 	}
 
 	public function offsetSet($offset, $value) {	
+		if ($value instanceof \Maphper\Relation) throw new \Exception();
+
 		$value = $this->processFilters($value);
 		$pk = $this->dataSource->getPrimaryKey();
 		if ($offset !== null) $value->{$pk[0]} = $offset;
-		$this->dataSource->save($value);
 		$value = $this->wrap($value);
+		$this->dataSource->save($value);
 	}
 	
 	public function offsetExists($offset) {
@@ -94,10 +116,13 @@ class Maphper implements \Countable, \ArrayAccess, \Iterator {
 
 	private function createNew($data = []) {
 		$obj = (is_callable($this->settings['resultClass'])) ? call_user_func($this->settings['resultClass']) : new $this->settings['resultClass'];
-		$writeClosure = function($field, $value) {	$this->$field = $value;	};			
-		$write = $writeClosure->bindTo($obj, $obj);
+		$writeClosure = function($field, $value) {	$this->$field = $value;	};
+		if (!($obj instanceof \stdclass)) $write = $writeClosure->bindTo($obj, $obj);
 		if ($data != null) {
-			foreach ($data as $key => $value) $write($key, $this->dataSource->processDates($value));			
+			foreach ($data as $key => $value) {
+				if ($obj instanceof \stdclass) $obj->$key = $this->dataSource->processDates($value);
+				else $write($key, $this->dataSource->processDates($value));
+			}
 		}
 		return $obj;		
 	}
@@ -105,10 +130,12 @@ class Maphper implements \Countable, \ArrayAccess, \Iterator {
 	private function wrap($object) {
 		//see if any relations need overwriting
 		foreach ($this->relations as $name => $relation) {
-			if (isset($object->$name)) {					
+			if (isset($object->$name) && !($object->$name instanceof \Maphper\Relation) ) {					
 				//After overwriting the relation, does the parent object ($object) need overwriting as well?
 				if ($relation->overwrite($object, $object->$name)) $this[] = $object;
+
 			}
+
 			$object->$name = $relation->getData($object); 
 		}			
 		return $object;		

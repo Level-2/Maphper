@@ -15,6 +15,8 @@ class VisibilityOverride {
 	}
 
 	public function getProperties($obj) {
+		$reflect = new \Reflectionclass($obj);
+		if ($reflect->isInternal()) return $obj;
 		$read = $this->readClosure->bindTo($obj, $obj);
 		return $read();
 	}

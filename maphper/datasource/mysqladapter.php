@@ -27,9 +27,12 @@ class MySqlAdapter implements DatabaseAdapter {
 	public function query(\Maphper\Lib\Query $query) {
 		$stmt = $this->getCachedStmt($query->getSql());
 		$args = $query->getArgs();
-		foreach ($args as &$arg) if ($arg instanceof \DateTime) $arg = $arg->format('Y-m-d H:i:s');
-		$res = $stmt->execute($args);
+		foreach ($args as $name => &$arg) {
+			if ($arg instanceof \DateTime) $arg = $arg->format('Y-m-d H:i:s');
+		}
 		
+		$res = $stmt->execute($args);
+
 		if (strpos(trim($query->getSql()), 'SELECT') === 0) return $stmt->fetchAll(\PDO::FETCH_OBJ);
 		else return $stmt;	
 	}
