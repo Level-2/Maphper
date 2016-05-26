@@ -24,7 +24,12 @@ class Maphper implements \Countable, \ArrayAccess, \Iterator {
 	public function __construct(DataSource $dataSource, array $settings = [], array $relations = []) {
 		$this->dataSource = $dataSource;
 		$this->settings = array_replace($this->settings, $settings);
-		$this->relations = $relations;		
+		$this->relations = $relations;
+		if (!isset($this->settings['writeClosure'])) {
+			$this->settings['writeClosure'] = function ($field, $value) {	$this->$field = $value;	};
+		} elseif (! $this->settings['writeClosure'] instanceof \Closure) {
+			throw new \InvalidArgumentException('The mapper writeClosure must be an anonymous function');
+		}
 	}
 	
 	public function addRelation($name, Relation $relation) {
@@ -116,8 +121,7 @@ class Maphper implements \Countable, \ArrayAccess, \Iterator {
 
 	private function createNew($data = []) {
 		$obj = (is_callable($this->settings['resultClass'])) ? call_user_func($this->settings['resultClass']) : new $this->settings['resultClass'];
-		$writeClosure = function($field, $value) {	$this->$field = $value;	};
-		if (!($obj instanceof \stdclass)) $write = $writeClosure->bindTo($obj, $obj);
+		if (!($obj instanceof \stdclass)) $write = $this->settings['writeClosure']->bindTo($obj, $obj);
 		if ($data != null) {
 			foreach ($data as $key => $value) {
 				if ($obj instanceof \stdclass) $obj->$key = $this->dataSource->processDates($value);
