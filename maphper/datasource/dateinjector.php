@@ -11,7 +11,7 @@ class DateInjector {
 		else if (is_object($obj)) $this->processCache->attach($obj, true);
 
 		if (is_array($obj) || (is_object($obj) && (!$obj instanceof \Iterator))) foreach ($obj as &$o) $o = $this->replaceDates($o, false);
-		if (is_string($obj) && is_numeric($obj[0]) && strlen($obj) <= 20) {
+		if (is_string($obj) && isset($obj[0]) && is_numeric($obj[0]) && strlen($obj) <= 20) {
 			try {
 				$date = new \DateTime($obj);
 				if ($date->format('Y-m-d H:i:s') == substr($obj, 0, 20)) $obj = $date;
