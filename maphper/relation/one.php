@@ -36,6 +36,10 @@ class One implements \Maphper\Relation {
 		if ($this->lazyLoad() == null) return '';
 		return call_user_func_array([$this->lazyLoad(), $func], $args);
 	}
+
+	public function __isset($name) {
+		return isset($this->lazyLoad()->$name);
+	}
 	
 	public function __get($name) {
 		if ($this->lazyLoad()) return $this->lazyLoad()->$name;
