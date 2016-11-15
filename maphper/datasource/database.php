@@ -175,8 +175,8 @@ class Database implements \Maphper\DataSource {
 		catch (\Exception $e) {
 			$error = 1;
 		}
-
- 		if ($error || $result->errorCode() > 0) $result = $this->adapter->query($this->crudBuilder->update($table, $primaryKey, $data));
+		
+ 		if ($error || (int)$result->errorCode() > 0) $result = $this->adapter->query($this->crudBuilder->update($table, $primaryKey, $data));
 		return $result;
 	}
 }
