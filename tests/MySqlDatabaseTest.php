@@ -9,7 +9,11 @@ class MySqlDatabaseTest extends PHPUnit_Framework_TestCase {
 
 	public function __construct() {
 		parent::__construct();
-		$this->pdo = new \PDO('mysql:dbname=maphpertest;host=127.0.0.1', 'u', '');
+		$this->assertTrue(class_exists('\\Tests\\MySqlConfig'), 'Please copy tests/mysqlconfig.example.php to tests/mysqlconfig.php and provide database connection information');
+
+		$config = new Tests\MySqlConfig();
+
+		$this->pdo = new \PDO('mysql:dbname=' . $config->schema . ';host=' . $config->host . ';port=' . $config->port, $config->username, $config->password);
 		$this->pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_SILENT);
 	}
 
