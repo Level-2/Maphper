@@ -9,12 +9,17 @@ class Mock implements \Maphper\DataSource {
         $this->id = $id;
     }
 
+    private function addPkToData($data, $id) {
+        $data->{$this->id} = $id;
+        return $data;
+    }
+
     public function getPrimaryKey() {
         return $this->id;
     }
 
 	public function findById($id) {
-        return $this->data[$id];
+        return $this->addPkToData($this->data[$id], $id);
     }
 
 	public function findByField(array $fields, $options = []) {
