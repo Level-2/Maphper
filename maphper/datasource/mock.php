@@ -9,30 +9,35 @@ class Mock implements \Maphper\DataSource {
         $this->id = $id;
     }
 
-    private function addPkToData($data, $id) {
-        $data->{$this->id} = $id;
-        return $data;
-    }
-
     public function getPrimaryKey() {
         return $this->id;
     }
 
-	public function findById($id) {
-        return $this->addPkToData($this->data[$id], $id);
+    public function findById($id) {
+        return isset($this->data[$id]) ?: [];
     }
 
-	public function findByField(array $fields, $options = []) {
-        $array = iterator_to_array($this->data);
-        return array_filter($array, function ($val, $key) use ($fields) {
-            if (!isset($fields[$key])) return true;
-            else {
-                if (is_array($fields[$key])) {
-                    return in_array($val, $fields[$key]);
+    public function processDates($obj) {
+		$injector = new DateInjector;
+		return $injector->replaceDates($obj);
+	}
+
+    public function findByField(array $fields, $options = []) {
+        $array = iterator_to_array($this->data->getIterator());
+        $filteredArray = array_filter($array, function ($data) use ($fields) {
+            foreach ($fields as $key => $val) {
+                if (!isset($data[$key])) return false;
+                else {
+                    if (is_array($val)) {
+                        if (!in_array($data[$key], $val)) return false;
+                    }
+                    else if ($data[$key] !== $val) return false;
                 }
-                else return $fields[$key] === $val;
             }
-        }, ARRAY_FILTER_USE_BOTH);
+            return true;
+        });
+        // Need to reset indexes
+        return array_values($filteredArray);
     }
 
 	public function findAggregate($function, $field, $group = null, array $criteria = [], array $options = []) {
@@ -51,7 +56,6 @@ class Mock implements \Maphper\DataSource {
 	public function save($data) {
         if (isset($data->{$this->id})) {
             $id = $data->{$this->id};
-            unset($data->{$this->id});
         }
         else $id = null;
 

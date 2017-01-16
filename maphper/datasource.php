@@ -1,4 +1,4 @@
-<?php 
+<?php
 namespace Maphper;
 interface DataSource {
 	public function getPrimaryKey();
@@ -9,4 +9,5 @@ interface DataSource {
 	public function deleteByField(array $fields);
 	public function save($data);
 	public function getErrors();
+	public function processDates($obj);
 }
