@@ -1031,12 +1031,11 @@ class MySqlDatabaseTest extends PHPUnit_Framework_TestCase {
 		$blog2->date = $date;
 
 		$mapper[] = $blog;
-var_dump($mapper[12]);
+
 		// Update entry
 
 		$mapper[] = (object) ['id' => 12, 'title' => 'test2'];
-var_dump($mapper[12]);
-//var_dump($blog);
+
 		$this->assertEquals($blog2, $mapper[12]);
 	}
 
