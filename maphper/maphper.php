@@ -103,6 +103,10 @@ class Maphper implements \Countable, \ArrayAccess, \Iterator {
 	public function offsetSet($offset, $value) {
 		if ($value instanceof \Maphper\Relation) throw new \Exception();
 
+		//Extract private properties from the object
+		$propertyReader = new \Maphper\Lib\VisibilityOverride();
+		$value = $propertyReader->getProperties($value);
+
 		$value = $this->processFilters($value);
 		$pk = $this->dataSource->getPrimaryKey();
 		if ($offset !== null) $value->{$pk[0]} = $offset;
