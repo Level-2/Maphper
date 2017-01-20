@@ -103,14 +103,21 @@ class Maphper implements \Countable, \ArrayAccess, \Iterator {
 	public function offsetSet($offset, $value) {
 		if ($value instanceof \Maphper\Relation) throw new \Exception();
 
+		//Extract private properties from the object
+		$propertyReader = new \Maphper\Lib\VisibilityOverride();
+		$value = $propertyReader->getProperties($value);
+
 		$value = $this->processFilters($value);
 		$pk = $this->dataSource->getPrimaryKey();
 		if ($offset !== null) $value->{$pk[0]} = $offset;
+		$valueCopy = clone $value;
 		$value = $this->wrap($value);
 		$this->dataSource->save($value);
+		$value = $this->wrap((object) array_merge((array)$value, (array)$valueCopy));
 	}
 
 	public function offsetExists($offset) {
+		if (count($this->dataSource->getPrimaryKey()) > 1) return new MultiPk($this, $offset, $this->dataSource->getPrimaryKey());
 		return (bool) $this->dataSource->findById($offset);
 	}
 

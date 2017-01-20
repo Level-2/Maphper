@@ -142,18 +142,15 @@ class Database implements \Maphper\DataSource {
 				$new = true;
 			}
 		}
-		//Extract private properties from the object
-		$propertyReader = new \Maphper\Lib\VisibilityOverride();
-		$writeData = $propertyReader->getProperties($data);
 
 		try {
-			$result = $this->insert($this->table, $this->primaryKey, $writeData);
+			$result = $this->insert($this->table, $this->primaryKey, $data);
 			//If there was an error but PDO is silent, trigger the catch block anyway
-			if ($result->errorCode() > 0) throw new \Exception('Could not insert into ' . $this->table);
+			if ($result->errorCode() !== "00000") throw new \Exception('Could not insert into ' . $this->table);
 		}
 		catch (\Exception $e) {
 			if ($tryagain && self::EDIT_STRUCTURE & $this->alterDb) {
-				$this->adapter->alterDatabase($this->table, $this->primaryKey, $writeData);
+				$this->adapter->alterDatabase($this->table, $this->primaryKey, $data);
 				$this->save($data, false);
 			}
 			else throw $e;
@@ -175,8 +172,8 @@ class Database implements \Maphper\DataSource {
 		catch (\Exception $e) {
 			$error = 1;
 		}
-		
- 		if ($error || (int)$result->errorCode() > 0) $result = $this->adapter->query($this->crudBuilder->update($table, $primaryKey, $data));
+
+ 		if ($error || $result->errorCode() !== "00000") $result = $this->adapter->query($this->crudBuilder->update($table, $primaryKey, $data));
 		return $result;
 	}
 }
