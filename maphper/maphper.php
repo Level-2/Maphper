@@ -113,6 +113,7 @@ class Maphper implements \Countable, \ArrayAccess, \Iterator {
 	}
 
 	public function offsetExists($offset) {
+		if (count($this->dataSource->getPrimaryKey()) > 1) return new MultiPk($this, $offset, $this->dataSource->getPrimaryKey());
 		return (bool) $this->dataSource->findById($offset);
 	}
 
