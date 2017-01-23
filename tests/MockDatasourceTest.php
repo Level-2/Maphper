@@ -237,7 +237,7 @@ class MockDatasourceTest extends PHPUnit_Framework_TestCase {
         $this->populateBlogs($storage);
 		$blogs = $this->getMaphper($storage, 'id');
 
-		$blogs = $blogs->sort('id desc');
+		$blogs = $blogs->sort('id desc')->getIterator();
 		$blogs->rewind();
 		$blog = $blogs->current();
 		$this->assertEquals('blog number 19', $blog->title);
@@ -262,7 +262,7 @@ class MockDatasourceTest extends PHPUnit_Framework_TestCase {
         $this->populateBlogs($storage);
 		$blogs = $this->getMaphper($storage, 'id');
 
-		$blogs = $blogs->offset(5);
+		$blogs = $blogs->offset(5)->getIterator();
 
 		$blogs->rewind();
 		$this->assertEquals(5, $blogs->current()->id);
@@ -843,14 +843,14 @@ class MockDatasourceTest extends PHPUnit_Framework_TestCase {
 
 		$this->assertEquals($actor->name, 'Samuel L. Jackson');
 
-		$actor->roles->rewind();
+    $iterator = $actor->roles->getIterator();
 		$this->assertEquals(2, count($actor->roles));
-		$role = $actor->roles->current();
+		$role = $iterator->current();
 		$this->assertEquals('Jules Winnfield', $role->characterName);
 		$this->assertEquals('Pulp Fiction', $role->movie->title);
 
-		$actor->roles->next();
-		$role = $actor->roles->current();
+		$iterator->next();
+		$role = $iterator->current();
 		$this->assertEquals('Neville Flynn', $role->characterName);
 		$this->assertEquals('Snakes on a Plane', $role->movie->title);
 	}

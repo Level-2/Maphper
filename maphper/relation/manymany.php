@@ -1,6 +1,6 @@
-<?php 
+<?php
 namespace Maphper\Relation;
-class ManyMany implements \Iterator, \ArrayAccess, \Countable, \Maphper\Relation {
+class ManyMany implements \IteratorAggregate, \ArrayAccess, \Countable, \Maphper\Relation {
 	private $results;
 	private $localField;
 	private $parentField;
@@ -11,7 +11,7 @@ class ManyMany implements \Iterator, \ArrayAccess, \Countable, \Maphper\Relation
 	private $autoTraverse = false;
 	private $object;
 	private $intermediateName;
-	
+
 	public function __construct(\Maphper\Maphper $intermediateMapper, \Maphper\Maphper $relatedMapper, $localField, $parentField, $intermediateName = null) {
 		$this->intermediateMapper = $intermediateMapper;
 		$this->relatedMapper = $relatedMapper;
@@ -20,20 +20,20 @@ class ManyMany implements \Iterator, \ArrayAccess, \Countable, \Maphper\Relation
 		$this->autoTraverse = $intermediateName ? false : true;
 		$this->intermediateName = $intermediateName ?: 'rel_' . $parentField;
 		$this->intermediateMapper->addRelation($this->intermediateName, new One($this->relatedMapper, $parentField, $localField));
-		
+
 	}
-	
+
 	public function getData($parentObject) {
 		$this->object = $parentObject;
-		return clone $this;	
+		return clone $this;
 	}
-	
+
 	public function overwrite($parentObject, &$data) {
 		$this->results = $data;
 		$this->object = $parentObject;
 		foreach ($data as $dt) $this[] = $dt;
 	}
-	
+
 	//bit hacky, breaking encapsulation, but simplest way to work out the info for the other side of the many:many relationship.
 	private function getOtherFieldNameInfo() {
 		if ($this->otherInfo == null) {
@@ -41,73 +41,53 @@ class ManyMany implements \Iterator, \ArrayAccess, \Countable, \Maphper\Relation
 
 			$reader = $propertyReader->bindTo($this->intermediateMapper, $this->intermediateMapper);
 
-			foreach ($reader('relations') as $relation) {		
+			foreach ($reader('relations') as $relation) {
 				$propertyReader = $propertyReader->bindTo($relation, $relation);
 				if ($propertyReader('parentField') != $this->parentField) {
-					$relation = $relation->getData($this->object);					
+					$relation = $relation->getData($this->object);
 					$this->otherInfo = [$propertyReader('localField'),  $propertyReader('parentField'), $propertyReader('mapper')];
 				}
 			}
 		}
 		return $this->otherInfo;
 	}
-	
+
 	public function count() {
-		list ($relatedField, $valueField, $mapper) = $this->getOtherFieldNameInfo();
-		return count($this->intermediateMapper->filter([$valueField => $this->object->$relatedField]));
+		return count($this->getResults());
 	}
-	
-	public function current() {
-		$result = $this->results[$this->iterator];
-		if ($this->autoTraverse) return $result->{$this->intermediateName};
-		else return $result;
-	}
-	
-	public function key() {
-		return $this->iterator;
-	}
-	
-	public function next() {
-		$this->iterator++;
-	}
-	
-	public function item($i) {
-		if (empty($this->results)) $this->rewind();
-		if (!isset($this->results[$i])) throw new \Exception('Item does not exist');
-		else {
-			if ($this->autoTraverse) return $this->results[$i]->{$this->intermediateName};
-			else return $this->results[$i];
-		}
-	}
-	
-	public function valid() {
-		return isset($this->results[$this->iterator]);
-	}
-	
-	public function rewind() {
-		$this->iterator = 0;
+
+	private function getResults() {
 		list ($relatedField, $valueField, $relatedMapper) = $this->getOtherFieldNameInfo();
 
 		$x = $this->intermediateMapper->filter([$valueField => $this->object->$relatedField]);
-		$this->results = iterator_to_array($x, false);
+		return $x;
 	}
-	
+
+	public function getIterator() {
+		$results = $this->getResults()->getIterator();
+		return new ManyManyIterator($results, $this->autoTraverse ? $this->intermediateName : null);
+	}
+
+	public function item($i) {
+		return iterator_to_array($this->getIterator(), false)[$i];
+	}
+
 	public function offsetExists($name) {
-		list ($relatedField, $valueField) = $this->getOtherFieldNameInfo();
-		$items = $this->relation->mapper->filter([$relatedField => $this->object->$valueField, $this->relation->parentField => $id]);
-		return isset($items[0]);
+		$items = $this->getResults()->filter([$this->parentField => $name]);
+
+		return $items->getIterator()->valid();
 	}
-	
-	public function offsetGet($id) {
-		list ($relatedField, $valueField) = $this->getOtherFieldNameInfo();
-		$items = $this->relation->mapper->filter([$relatedField => $this->object->$valueField, $this->relation->parentField => $id]);
-		return $items[0]->{$this->name};
+
+	public function offsetGet($name) {
+		$items = $this->getResults()->filter([$this->parentField => $name]);
+
+		return $items->getIterator()->current()->{$this->intermediateName};
 	}
-	
+
 	public function offsetSet($name, $value) {
 		list($relatedField, $valueField, $mapper) = $this->getOtherFieldNameInfo();
 		if ($this->autoTraverse) {
-			$record = new \stdClass;		
+			$record = new \stdClass;
 			$record->{$this->parentField} =  $value->{$this->localField};
 			$record->$valueField = $this->object->{$relatedField};
 			$this->intermediateMapper[] = $record;
@@ -115,19 +95,21 @@ class ManyMany implements \Iterator, \ArrayAccess, \Countable, \Maphper\Relation
 		}
 		else {
 			$record = $value;
-			if (isset($record->{$this->parentField}) && isset($value->{$this->intermediateName}) && $record->{$this->parentField} == $value->{$this->intermediateName}->{$this->localField} && $record->$valueField == $this->object->{$relatedField}) {
+			if (isset($record->{$this->parentField}) && isset($value->{$this->intermediateName}) &&
+					$record->{$this->parentField} == $value->{$this->intermediateName}->{$this->localField} &&
+					$record->$valueField == $this->object->{$relatedField}) {
 				return;
 			}
-			else { 
+			else {
 				$record->{$this->parentField} = $value->{$this->intermediateName}->{$this->localField};
 				$record->$valueField = $this->object->{$relatedField};
-				$this->intermediateMapper[] = $record;	
+				$this->intermediateMapper[] = $record;
 				return true;
-			}			
-			
-		}		
+			}
+
+		}
 	}
-	
+
 	public function offsetUnset($id) {
 		//$this->relation->mapper->filter([$relatedField => $this->object->$valueField, $this->relation->parentField => $id])->delete();
 	}

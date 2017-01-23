@@ -17,14 +17,6 @@ class MySqlDatabaseTest extends PHPUnit_Framework_TestCase {
 		$this->pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_SILENT);
 	}
 
-	protected function setUp() {
-		parent::setUp ();
-	}
-
-	protected function tearDown() {
-
-	}
-
 	protected function getDataSource($name, $primaryKey = 'id', array $options = []) {
 		return new \Maphper\DataSource\Database($this->pdo, $name, $primaryKey, $options);
 	}
@@ -178,7 +170,7 @@ class MySqlDatabaseTest extends PHPUnit_Framework_TestCase {
 		$authors[] = $author;
 		$author->name = 'Blog Author';
 
-		//$author->blogs = [];
+		$author->blogs = [];
 
 		$blog1 = new stdclass;
 		$blog1->name = 'Blog 1';
@@ -203,9 +195,6 @@ class MySqlDatabaseTest extends PHPUnit_Framework_TestCase {
 
 		$this->assertEquals(2, count($authors[1]->blogs));
 	}
-
-
-
 
 	public function testObjectGraphSaveDeep() {
 
@@ -307,7 +296,7 @@ class MySqlDatabaseTest extends PHPUnit_Framework_TestCase {
 		$this->populateBlogs();
 		$blogs = new \Maphper\Maphper($this->getDataSource('blog'));
 
-		$blogs = $blogs->sort('id desc');
+		$blogs = $blogs->sort('id desc')->getIterator();
 		$blogs->rewind();
 		$blog = $blogs->current();
 		$this->assertEquals($blog->title, 'blog number 20');
@@ -330,7 +319,7 @@ class MySqlDatabaseTest extends PHPUnit_Framework_TestCase {
 		$this->populateBlogs();
 		$blogs = new \Maphper\Maphper($this->getDataSource('blog'));
 
-		$blogs = $blogs->offset(5);
+		$blogs = $blogs->offset(5)->getIterator();
 
 		$blogs->rewind();
 		$this->assertEquals(6, $blogs->current()->id);
@@ -794,7 +783,7 @@ class MySqlDatabaseTest extends PHPUnit_Framework_TestCase {
 		$this->assertFalse($this->hasIndex('blog', 'title'));
 
 
-		$blogs = $mapper->sort('title desc');
+		$blogs = $mapper->sort('title desc')->getIterator();
 		$blogs->rewind();
 		$blog = $blogs->current();
 		$this->assertEquals($blog->title, 'blog number 9');
@@ -888,6 +877,21 @@ class MySqlDatabaseTest extends PHPUnit_Framework_TestCase {
 		$this->assertEquals($actors[1]->movies->item(0)->title, 'Movie 2');
 		$this->assertEquals($actors[1]->movies->item(1)->title, 'Movie 3');
 
+	}
+
+
+	public function testManyManyGetByIndex() {
+			list($actors, $movies, $cast) = $this->setUpMoviesActors();
+			$actors[1]->movies[] = $movies[3];
+
+			$this->assertEquals($movies[3]->mid, $actors[1]->movies[3]->mid);
+			$this->assertEquals($movies[3]->title, $actors[1]->movies[3]->title);
+	}
+
+	public function testManyManyGetByIndexNotExist() {
+			list($actors, $movies, $cast) = $this->setUpMoviesActors();
+
+			$this->assertFalse(isset($actors[1]->movies[2]));
 	}
 
 
@@ -1007,14 +1011,14 @@ class MySqlDatabaseTest extends PHPUnit_Framework_TestCase {
 
 		$this->assertEquals($actor->name, 'Samuel L. Jackson');
 
-		$actor->roles->rewind();
+		$iterator = $actor->roles->getIterator();
 		$this->assertEquals(2, count($actor->roles));
-		$role = $actor->roles->current();
+		$role = $iterator->current();
 		$this->assertEquals('Jules Winnfield', $role->characterName);
 		$this->assertEquals('Pulp Fiction', $role->movie->title);
 
-		$actor->roles->next();
-		$role = $actor->roles->current();
+		$iterator->next();
+		$role = $iterator->current();
 		$this->assertEquals('Neville Flynn', $role->characterName);
 		$this->assertEquals('Snakes on a Plane', $role->movie->title);
 	}

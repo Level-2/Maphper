@@ -1,6 +1,6 @@
 <?php
 namespace Maphper;
-class Maphper implements \Countable, \ArrayAccess, \Iterator {
+class Maphper implements \Countable, \ArrayAccess, \IteratorAggregate {
 	const FIND_EXACT 		= 	0x1;
 	const FIND_LIKE 		= 	0x2;
 	const FIND_STARTS 		= 	0x4;
@@ -53,43 +53,28 @@ class Maphper implements \Countable, \ArrayAccess, \Iterator {
 		}
 	}
 
-	public function current() {
-		return $this->wrap($this->createNew($this->array[$this->iterator]));
-	}
-
-	public function key() {
-		$pk = $this->dataSource->getPrimaryKey();
-		$pk = end($pk);
-		return $this->array[$this->iterator]->$pk;
-	}
-
-	public function next() {
-		++$this->iterator;
-	}
-
-	public function valid() {
-		return isset($this->array[$this->iterator]);
-	}
-
-	public function rewind() {
-		$this->iterator = 0;
-		$this->fillArrayValues();
-	}
-
-	public function item($n) {
-		$this->fillArrayValues();
-		return isset($this->array[$n]) ? $this->wrap($this->array[$n]) : null;
-	}
-
-	private function fillArrayValues() {
+	private function getResults() {
 		foreach ($this->settings['filter'] as $name => &$filter) {
-
 			if (isset($this->relations[$name])) {
 				$this->relations[$name]->overwrite($filter, $filter[$name]);
 			}
 		}
-		if (empty($this->array)) $this->array = $this->dataSource->findByField($this->settings['filter'],
+		$results = $this->dataSource->findByField($this->settings['filter'],
 			['order' => $this->settings['sort'], 'limit' => $this->settings['limit'], 'offset' => $this->settings['offset'] ]);
+
+		$results = array_map([$this, 'createNew'], $results);
+		$results = array_map([$this, 'wrap'], $results);
+
+		return $results;
+	}
+
+	public function item($n) {
+		$array = $this->getResults();
+		return isset($array[$n]) ? $array[$n] : null;
+	}
+
+	public function getIterator() {
+		return new Iterator($this->getResults(), $this->dataSource->getPrimaryKey());
 	}
 
 	private function processFilters($value) {
@@ -135,11 +120,16 @@ class Maphper implements \Countable, \ArrayAccess, \Iterator {
 		if (!($obj instanceof \stdclass)) $write = $this->settings['writeClosure']->bindTo($obj, $obj);
 		if ($data != null) {
 			foreach ($data as $key => $value) {
-				if ($obj instanceof \stdclass) $obj->$key = $this->dataSource->processDates($value);
-				else $write($key, $this->dataSource->processDates($value));
+				if ($obj instanceof \stdclass) $obj->$key = $this->processDates($value);
+				else $write($key, $this->processDates($value));
 			}
 		}
 		return $obj;
+	}
+
+	private function processDates($obj) {
+		$injector = new Lib\DateInjector;
+		return $injector->replaceDates($obj);
 	}
 
 	private function wrap($object) {
