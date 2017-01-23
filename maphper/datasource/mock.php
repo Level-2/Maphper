@@ -17,11 +17,6 @@ class Mock implements \Maphper\DataSource {
         return isset($this->data[$id]) ? (array)$this->data[$id] : [];
     }
 
-    public function processDates($obj) {
-		    $injector = new DateInjector;
-		      return $injector->replaceDates($obj);
-  	}
-
     public function findByField(array $fields, $options = []) {
         $array = iterator_to_array($this->data->getIterator());
         $filteredArray = array_filter($array, function ($data) use ($fields) {

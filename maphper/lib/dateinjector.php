@@ -1,5 +1,5 @@
 <?php
-namespace Maphper\DataSource;
+namespace Maphper\Lib;
 //Replaces dates in an object graph with \DateTime instances
 class DateInjector {
 	private $processCache;
@@ -10,7 +10,7 @@ class DateInjector {
 		if (is_object($obj) && $this->processCache->contains($obj)) return $obj;
 		else if (is_object($obj)) $this->processCache->attach($obj, true);
 
-		if (is_array($obj) || (is_object($obj) && (!$obj instanceof \Iterator))) foreach ($obj as &$o) $o = $this->replaceDates($o, false);
+		if (is_array($obj) || (is_object($obj) && ($obj instanceof \Iterator))) foreach ($obj as &$o) $o = $this->replaceDates($o, false);
 		if (is_string($obj) && isset($obj[0]) && is_numeric($obj[0]) && strlen($obj) <= 20) {
 			try {
 				$date = new \DateTime($obj);

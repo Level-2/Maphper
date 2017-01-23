@@ -50,11 +50,6 @@ class Database implements \Maphper\DataSource {
 		return $this->errors;
 	}
 
-	public function processDates($obj) {
-		$injector = new DateInjector;
-		return $injector->replaceDates($obj);
-	}
-
 	public function findById($id) {
 		if (!isset($this->cache[$id])) {
 			try {
