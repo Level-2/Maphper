@@ -1,5 +1,5 @@
 <?php
-
+use Maphper\Maphper;
 class MockDatasourceTest extends PHPUnit_Framework_TestCase {
     protected function getMaphper($storage, $primaryKey = 'id', $options = []) {
 		$datasource = new \Maphper\DataSource\Mock($storage, $primaryKey);
@@ -879,4 +879,90 @@ class MockDatasourceTest extends PHPUnit_Framework_TestCase {
 		$this->assertEquals($blog2, $mapper[12]);
 	}
 
+    public function testNotFilter() {
+        $storage = new \ArrayObject();
+		$mapper = $this->getMaphper($storage, 'id');
+        $value = (object)['name' => 'test1', 'type' => 'include'];
+        $mapper[] = $value;
+        $mapper[] = (object)['name' => 'test1', 'type' => 'not_include'];
+
+        $filtered = $mapper->filter([
+            Maphper::FIND_NOT => [
+                'type' => 'not_include'
+            ]
+        ]);
+        $this->assertEquals($value, $filtered->getIterator()->current());
+    }
+
+    public function testLessFilter() {
+        $storage = new \ArrayObject();
+        $this->populateBlogs($storage);
+		$mapper = $this->getMaphper($storage, 'id');
+        $filtered = $mapper->filter([
+            Maphper::FIND_LESS => [
+                'id' => 10
+            ]
+        ]);
+        $this->assertCount(10, $filtered);
+    }
+
+    public function testGreaterFilter() {
+        $storage = new \ArrayObject();
+        $this->populateBlogs($storage);
+		$mapper = $this->getMaphper($storage, 'id');
+        $filtered = $mapper->filter([
+            Maphper::FIND_GREATER => [
+                'id' => 15
+            ]
+        ]);
+        $this->assertCount(4, $filtered);
+    }
+
+    public function testNoCaseFilter() {
+        $storage = new \ArrayObject();
+		$mapper = $this->getMaphper($storage, 'id');
+        $value = (object)['name' => 'test1', 'type' => 'include'];
+        $mapper[] = $value;
+        $mapper[] = (object)['name' => 'test1', 'type' => 'INCLUDE'];
+
+        $filtered = $mapper->filter([
+            Maphper::FIND_NOCASE => [
+                'type' => 'include'
+            ]
+        ]);
+        $this->assertCount(2, $filtered);
+    }
+
+    public function testBetweenFilter() {
+        $storage = new \ArrayObject();
+        $this->populateBlogs($storage);
+		$mapper = $this->getMaphper($storage, 'id');
+        $filtered = $mapper->filter([
+            Maphper::FIND_BETWEEN => [
+                'id' => [11,18]
+            ]
+        ]);
+        $this->assertCount(8, $filtered);
+    }
+
+    public function testOrFilter() {
+        $storage = new \ArrayObject();
+		$mapper = $this->getMaphper($storage, 'id');
+        $value1 = (object) ['name' => 'test1', 'type' => 'include'];
+        $value2 = (object) ['name' => 'test3', 'type' => 'not_include'];
+        $mapper[] = $value1;
+        $mapper[] = (object) ['name' => 'test2', 'type' => 'other'];
+        $mapper[] = $value2;
+
+        $filtered = $mapper->filter([
+            Maphper::FIND_OR => [
+                'type' => 'include',
+                'name' => 'test3'
+            ]
+        ]);
+        $iterator = $filtered->getIterator();
+        $this->assertEquals($value1, $iterator->current());
+        $iterator->next();
+        $this->assertEquals($value2, $iterator->current());
+    }
 }
