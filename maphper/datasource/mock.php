@@ -103,6 +103,8 @@ class Mock implements \Maphper\DataSource {
 
     private function processFilter($mode, $expected, $actual) {
         if (Maphper::FIND_NOT & $mode) return $expected != $actual;
+        else if (Maphper::FIND_GREATER & $mode && Maphper::FIND_EXACT & $mode) return $expected <= $actual;
+        else if (Maphper::FIND_LESS & $mode && Maphper::FIND_EXACT & $mode) return $expected >= $actual;
         else if (Maphper::FIND_GREATER & $mode) return $expected < $actual;
         else if (Maphper::FIND_LESS & $mode) return $expected > $actual;
         else if (Maphper::FIND_BETWEEN & $mode) return $expected[0] <= $actual && $actual <= $expected[1];

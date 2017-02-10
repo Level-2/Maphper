@@ -918,6 +918,30 @@ class MockDatasourceTest extends PHPUnit_Framework_TestCase {
         $this->assertCount(4, $filtered);
     }
 
+    public function testLessOrEqualFilter() {
+        $storage = new \ArrayObject();
+        $this->populateBlogs($storage);
+		$mapper = $this->getMaphper($storage, 'id');
+        $filtered = $mapper->filter([
+            Maphper::FIND_LESS | Maphper::FIND_EXACT => [
+                'id' => 10
+            ]
+        ]);
+        $this->assertCount(11, $filtered);
+    }
+
+    public function testGreaterOrEqualFilter() {
+        $storage = new \ArrayObject();
+        $this->populateBlogs($storage);
+		$mapper = $this->getMaphper($storage, 'id');
+        $filtered = $mapper->filter([
+            Maphper::FIND_GREATER | Maphper::FIND_EXACT => [
+                'id' => 15
+            ]
+        ]);
+        $this->assertCount(5, $filtered);
+    }
+
     public function testNoCaseFilter() {
         $storage = new \ArrayObject();
 		$mapper = $this->getMaphper($storage, 'id');

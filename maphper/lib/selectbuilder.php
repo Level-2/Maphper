@@ -61,7 +61,7 @@ class SelectBuilder {
 				$sql[] = $nullSql . 'NULL';
 			}
 			else {
-				$operator = '=';
+                $operator = "";
 
 				if (\Maphper\Maphper::FIND_LIKE & $mode) {
 					$operator = 'LIKE';
@@ -77,6 +77,7 @@ class SelectBuilder {
 				else if (\Maphper\Maphper::FIND_LESS & $mode) $operator = '<';
 				else if (\Maphper\Maphper::FIND_NOT & $mode) $operator = '!=';
 
+                if (\Maphper\Maphper::FIND_EXACT & $mode) $operator .= '=';
 
 				$args[$key] = $value;
 				$sql[] = $key . ' ' . $operator . ' :' . $key;
