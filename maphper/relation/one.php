@@ -32,7 +32,7 @@ class One implements \Maphper\Relation {
 		}
 		return $this->data;
 	}
-	
+
 	public function __call($func, array $args = []) {
 		if ($this->lazyLoad() == null) return '';
 		return call_user_func_array([$this->lazyLoad(), $func], $args);
@@ -40,10 +40,11 @@ class One implements \Maphper\Relation {
 
 	public function __get($name) {
 		if ($this->lazyLoad()) return $this->lazyLoad()->$name;
+        else return null;
 	}
 
 	public function __isset($name) {
-		return (bool) $this->__get($name);
+		return isset($this->lazyLoad()->$name);
 	}
 
 	public function overwrite($parentObject, &$data) {
