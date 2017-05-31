@@ -34,7 +34,6 @@ class SelectBuilder {
 				$result = $this->createSql($value, $key);
 				foreach ($result['args'] as $arg_key => $arg) $args[$arg_key] = $arg;
 				foreach ($result['sql'] as $arg) $sql[] = $arg;
-				continue;
 			}
 			else if (\Maphper\Maphper::FIND_BETWEEN & $mode) {
 				$sql[] = $key . '>= :' . $key . 'from';
@@ -42,7 +41,6 @@ class SelectBuilder {
 
 				$args[$key . 'from'] = $value[0];
 				$args[$key . 'to'] = $value[1];
-				continue;
 			}
 			else if (!is_numeric($key) && is_array($value)) {
 				$inSql = [];
@@ -53,7 +51,6 @@ class SelectBuilder {
 				}
 				if (count($inSql) == 0) return [];
 				else $sql[] = $key . ' IN ( ' .  implode(', ', $inSql) . ')';
-				continue;
 			}
 			else if ($value === NULL) {
 				$nullSql = $key . ' IS ';
@@ -61,7 +58,6 @@ class SelectBuilder {
 				$sql[] = $nullSql . 'NULL';
 			}
 			else {
-                $operator = "";
 
 				if (\Maphper\Maphper::FIND_LIKE & $mode) {
 					$operator = 'LIKE';
@@ -71,13 +67,7 @@ class SelectBuilder {
 					$operator = 'LIKE';
 					$value = $value . '%';
 				}
-				else if (\Maphper\Maphper::FIND_NOCASE & $mode) $operator = 'LIKE';
-				else if (\Maphper\Maphper::FIND_BIT & $mode) $operator = '&';
-				else if (\Maphper\Maphper::FIND_GREATER & $mode) $operator = '>';
-				else if (\Maphper\Maphper::FIND_LESS & $mode) $operator = '<';
-				else if (\Maphper\Maphper::FIND_NOT & $mode) $operator = '!=';
-
-                if (\Maphper\Maphper::FIND_EXACT & $mode) $operator .= '=';
+				else $operator = $this->getOperator($mode);
 
 				$args[$key] = $value;
 				$sql[] = $key . ' ' . $operator . ' :' . $key;
@@ -89,4 +79,18 @@ class SelectBuilder {
 		if (!empty($query)) $query = '(' . $query . ')';
 		return ['args' => $args, 'sql' => [$query]];
 	}
+
+    private function getOperator($mode) {
+        $operator = "";
+
+        if (\Maphper\Maphper::FIND_NOCASE & $mode) $operator = 'LIKE';
+        else if (\Maphper\Maphper::FIND_BIT & $mode) $operator = '&';
+        else if (\Maphper\Maphper::FIND_GREATER & $mode) $operator = '>';
+        else if (\Maphper\Maphper::FIND_LESS & $mode) $operator = '<';
+        else if (\Maphper\Maphper::FIND_NOT & $mode) $operator = '!=';
+
+        if (\Maphper\Maphper::FIND_EXACT & $mode) $operator .= '=';
+
+        return $operator;
+    }
 }
