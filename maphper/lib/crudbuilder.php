@@ -3,12 +3,12 @@ namespace Maphper\Lib;
 class CrudBuilder {
 	private function quote($str) {
 		return '`' . str_replace('.', '`.`', trim($str, '`')) . '`';
-	}	
+	}
 
 	public function delete($table, array $criteria, $args, $limit = null, $offset = null) {
 		$limit = $limit ? ' LIMIT ' . $limit : '';
 		$offset = $offset ? ' OFFSET ' . $offset : '';
-		return new Query('DELETE FROM ' . $table . ' WHERE ' . implode(' AND ', $criteria) . $limit . $offset, $args);
+		return new Query('DELETE FROM ' . $table . ' WHERE ' . (!empty($criteria) ? implode(' AND ', $criteria) : '1 = 1 ') . $limit . $offset, $args);
 	}
 
 
@@ -28,11 +28,11 @@ class CrudBuilder {
 			} else {
 				$sql[] = ':' . $field;
 			}
-			$args[$field] = $value;			
+			$args[$field] = $value;
 		}
 		return ['sql' => $sql, 'args' => $args];
 	}
-	
+
 	public function insert($table, $data) {
 		$query = $this->buildSaveQuery($data);
 		return new Query('INSERT INTO ' . $this->quote($table) . ' (' .implode(', ', array_keys($query['args'])).') VALUES ( ' . implode(', ', $query['sql']). ' )', $query['args']);

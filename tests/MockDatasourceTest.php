@@ -989,4 +989,17 @@ class MockDatasourceTest extends PHPUnit_Framework_TestCase {
         $iterator->next();
         $this->assertEquals($value2, $iterator->current());
     }
+
+    public function testDeleteAll() {
+        $storage = new ArrayObject();
+		$mapper = $this->getMaphper($storage, 'id');
+
+        $mapper[1] = (object)['id' => 1, 'name' => 'Test1'];
+        $mapper[2] = (object)['id' => 2, 'name' => 'Test2'];
+        $mapper[3] = (object)['id' => 3, 'name' => 'Test3'];
+
+        $this->assertTrue(count($mapper) == 3);
+        $mapper->delete();
+        $this->assertTrue(count($mapper) == 0);
+    }
 }

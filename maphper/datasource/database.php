@@ -121,6 +121,7 @@ class Database implements \Maphper\DataSource {
 		else $limit = '';
 
 		$query = $this->selectBuilder->createSql($fields, $mode);
+        $query['sql'] = array_filter($query['sql']);
 		$this->adapter->query($this->crudBuilder->delete($this->table, $query['sql'], $query['args'], $limit));
 		$this->addIndex(array_keys($query['args']));
 
