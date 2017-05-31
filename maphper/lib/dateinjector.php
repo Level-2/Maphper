@@ -14,7 +14,7 @@ class DateInjector {
 		if (is_string($obj) && isset($obj[0]) && is_numeric($obj[0]) && strlen($obj) <= 20) {
 			try {
 				$date = new \DateTime($obj);
-				if ($date->format('Y-m-d H:i:s') == substr($obj, 0, 20)) $obj = $date;
+				if ($date->format('Y-m-d H:i:s') == substr($obj, 0, 20) || $date->format('Y-m-d') == substr($obj, 0, 10)) $obj = $date;
 			}
 			catch (\Exception $e) {	//Doesn't need to do anything as the try/catch is working out whether $obj is a date
 			}
