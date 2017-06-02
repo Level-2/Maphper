@@ -1057,7 +1057,20 @@ class MySqlDatabaseTest extends PHPUnit_Framework_TestCase {
 
         $this->assertTrue(count($mapper) == 3);
         $mapper->delete();
-        var_dump(count($mapper));
         $this->assertTrue(count($mapper) == 0);
+    }
+
+    public function testPkAccessWithFilter() {
+        $this->dropTable('blog');
+        $mapper = new \Maphper\Maphper($this->getDataSource('blog', 'id', ['editmode' => true]));
+
+        $mapper[1] = (object)['id' => 1, 'name' => 'Test1', 'type' => 'a'];
+        $mapper[2] = (object)['id' => 2, 'name' => 'Test2', 'type' => 'a'];
+        $mapper[3] = (object)['id' => 3, 'name' => 'Test3', 'type' => 'b'];
+
+        $mapper = $mapper->filter(['type' => 'a']);
+
+        $this->assertFalse(isset($mapper[3]));
+        $this->assertFalse(isset($mapper[3]->id));
     }
 }

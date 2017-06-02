@@ -1002,4 +1002,18 @@ class MockDatasourceTest extends PHPUnit_Framework_TestCase {
         $mapper->delete();
         $this->assertTrue(count($mapper) == 0);
     }
+
+    public function testPkAccessWithFilter() {
+        $storage = new ArrayObject();
+		$mapper = $this->getMaphper($storage, 'id');
+
+        $mapper[1] = (object)['id' => 1, 'name' => 'Test1', 'type' => 'a'];
+        $mapper[2] = (object)['id' => 2, 'name' => 'Test2', 'type' => 'a'];
+        $mapper[3] = (object)['id' => 3, 'name' => 'Test3', 'type' => 'b'];
+
+        $mapper = $mapper->filter(['type' => 'a']);
+
+        $this->assertFalse(isset($mapper[3]));
+        $this->assertFalse(isset($mapper[3]->id));
+    }
 }

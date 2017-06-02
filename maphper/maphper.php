@@ -18,7 +18,6 @@ class Maphper implements \Countable, \ArrayAccess, \IteratorAggregate {
 	private $dataSource;
 	private $relations = [];
 	private $settings = ['filter' => [], 'sort' => null, 'limit' => null, 'offset' => null, 'resultClass' => '\\stdClass'];
-	private $array = [];
 	private $iterator = 0;
 
 	public function __construct(DataSource $dataSource, array $settings = [], array $relations = []) {
@@ -103,6 +102,10 @@ class Maphper implements \Countable, \ArrayAccess, \IteratorAggregate {
 
 	public function offsetExists($offset) {
 		if (count($this->dataSource->getPrimaryKey()) > 1) return new MultiPk($this, $offset, $this->dataSource->getPrimaryKey());
+        if (!empty($this->settings['filter'])) {
+            $data = $this->dataSource->findByField(array_merge($this->settings['filter'], [$this->dataSource->getPrimaryKey()[0] => $offset]));
+            return isset($data[0]);
+        }
 		return (bool) $this->dataSource->findById($offset);
 	}
 
@@ -112,6 +115,10 @@ class Maphper implements \Countable, \ArrayAccess, \IteratorAggregate {
 
 	public function offsetGet($offset) {
 		if (count($this->dataSource->getPrimaryKey()) > 1) return new MultiPk($this, $offset, $this->dataSource->getPrimaryKey());
+        if (!empty($this->settings['filter'])) {
+            $data = $this->dataSource->findByField(array_merge($this->settings['filter'], [$this->dataSource->getPrimaryKey()[0] => $offset]));
+            return $this->wrap($this->createNew(isset($data[0]) ? $data[0] : null));
+        }
 		return $this->wrap($this->createNew($this->dataSource->findById($offset)));
 	}
 
@@ -161,7 +168,6 @@ class Maphper implements \Countable, \ArrayAccess, \IteratorAggregate {
 	}
 
 	public function delete() {
-		$this->array = [];
 		$this->dataSource->deleteByField($this->settings['filter'], ['order' => $this->settings['sort'], 'limit' => $this->settings['limit'], 'offset' => $this->settings['offset']]);
 	}
 }
