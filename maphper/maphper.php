@@ -84,12 +84,12 @@ class Maphper implements \Countable, \ArrayAccess, \IteratorAggregate {
 		return $value;
 	}
 
-	public function offsetSet($offset, $value) {
-		if ($value instanceof \Maphper\Relation) throw new \Exception();
+	public function offsetSet($offset, $valueObj) {
+		if ($valueObj instanceof \Maphper\Relation) throw new \Exception();
 
 		//Extract private properties from the object
 		$propertyReader = new \Maphper\Lib\VisibilityOverride();
-		$value = $propertyReader->getProperties($value);
+		$value = $propertyReader->getProperties($valueObj);
 
 		$value = $this->processFilters($value);
 		$pk = $this->dataSource->getPrimaryKey();
@@ -98,6 +98,7 @@ class Maphper implements \Countable, \ArrayAccess, \IteratorAggregate {
 		$value = $this->wrap($value);
 		$this->dataSource->save($value);
 		$value = $this->wrap((object) array_merge((array)$value, (array)$valueCopy));
+        $this->createNew($value, $valueObj);
 	}
 
 	public function offsetExists($offset) {
@@ -122,8 +123,8 @@ class Maphper implements \Countable, \ArrayAccess, \IteratorAggregate {
 		return $this->wrap($this->createNew($this->dataSource->findById($offset)));
 	}
 
-	private function createNew($data = []) {
-		$obj = (is_callable($this->settings['resultClass'])) ? call_user_func($this->settings['resultClass']) : new $this->settings['resultClass'];
+	private function createNew($data = [], $obj = null) {
+		if (!$obj) $obj = (is_callable($this->settings['resultClass'])) ? call_user_func($this->settings['resultClass']) : new $this->settings['resultClass'];
 		if (!($obj instanceof \stdclass)) $write = $this->settings['writeClosure']->bindTo($obj, $obj);
 		if ($data != null) {
 			foreach ($data as $key => $value) {
