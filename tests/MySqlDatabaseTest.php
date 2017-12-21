@@ -386,20 +386,20 @@ class MySqlDatabaseTest extends PHPUnit_Framework_TestCase {
 		$this->assertEquals('Title Updated', $blog->getTitle());
 	}
 
-    public function testResultClassPrivatePropertiesWriteWhenUpdating() {
-        $this->dropTable('blog');
-        $blogs = new \Maphper\Maphper($this->getDataSource('blog', 'id', ['editmode' => true]), ['resultClass' => 'Blog']);
+	public function testResultClassPrivatePropertiesWriteWhenUpdating() {
+		$this->dropTable('blog');
+		$blogs = new \Maphper\Maphper($this->getDataSource('blog', 'id', ['editmode' => true]), ['resultClass' => 'Blog']);
 
-        $blog = new Blog();
+		$blog = new Blog();
 
-        $blog->title = 'My Blog Title';
-        $blog->content = 'This is my first blog entry';
+		$blog->title = 'My Blog Title';
+		$blog->content = 'This is my first blog entry';
 
-        //Store the blog using the next available ID
-        $blogs[] = $blog;
+		//Store the blog using the next available ID
+		$blogs[] = $blog;
 
-        $this->assertEquals(1, $blog->id);
-    }
+		$this->assertEquals(1, $blog->id);
+	}
 
 
 	public function testLoopKey() {
@@ -1062,30 +1062,52 @@ class MySqlDatabaseTest extends PHPUnit_Framework_TestCase {
 		$this->assertEquals($blog2, $mapper[12]);
 	}
 
-    public function testDeleteAll() {
+	public function testDeleteAll() {
 		$this->dropTable('blog');
-        $mapper = new \Maphper\Maphper($this->getDataSource('blog', 'id', ['editmode' => true]));
+		$mapper = new \Maphper\Maphper($this->getDataSource('blog', 'id', ['editmode' => true]));
 
-        $mapper[1] = (object)['id' => 1, 'name' => 'Test1'];
-        $mapper[2] = (object)['id' => 2, 'name' => 'Test2'];
-        $mapper[3] = (object)['id' => 3, 'name' => 'Test3'];
+		$mapper[1] = (object)['id' => 1, 'name' => 'Test1'];
+		$mapper[2] = (object)['id' => 2, 'name' => 'Test2'];
+		$mapper[3] = (object)['id' => 3, 'name' => 'Test3'];
 
-        $this->assertTrue(count($mapper) == 3);
-        $mapper->delete();
-        $this->assertTrue(count($mapper) == 0);
-    }
+		$this->assertTrue(count($mapper) == 3);
+		$mapper->delete();
+		$this->assertTrue(count($mapper) == 0);
+	}
 
-    public function testPkAccessWithFilter() {
-        $this->dropTable('blog');
-        $mapper = new \Maphper\Maphper($this->getDataSource('blog', 'id', ['editmode' => true]));
+	public function testPkAccessWithFilter() {
+		$this->dropTable('blog');
+		$mapper = new \Maphper\Maphper($this->getDataSource('blog', 'id', ['editmode' => true]));
 
-        $mapper[1] = (object)['id' => 1, 'name' => 'Test1', 'type' => 'a'];
-        $mapper[2] = (object)['id' => 2, 'name' => 'Test2', 'type' => 'a'];
-        $mapper[3] = (object)['id' => 3, 'name' => 'Test3', 'type' => 'b'];
+		$mapper[1] = (object)['id' => 1, 'name' => 'Test1', 'type' => 'a'];
+		$mapper[2] = (object)['id' => 2, 'name' => 'Test2', 'type' => 'a'];
+		$mapper[3] = (object)['id' => 3, 'name' => 'Test3', 'type' => 'b'];
 
-        $mapper = $mapper->filter(['type' => 'a']);
+		$mapper = $mapper->filter(['type' => 'a']);
 
-        $this->assertFalse(isset($mapper[3]));
-        $this->assertFalse(isset($mapper[3]->id));
-    }
+		$this->assertFalse(isset($mapper[3]));
+		$this->assertFalse(isset($mapper[3]->id));
+	}
+
+
+	public function testInsertNoEditModeNoColumn() {
+
+		$this->expectException(\Exception::class);
+
+		$this->pdo->query('DROP TABLE IF EXISTS `test`');
+		$this->pdo->query('CREATE TABLE IF NOT EXISTS test (`col1` VARCHAR(191) NOT NULL, `col2` VARCHAR(191) NOT NULL, PRIMARY KEY(`col1`)) ');
+
+
+		$mapper = new \Maphper\Maphper($this->getDataSource('test', 'col1', ['editmode' => false]));
+
+		$record = new \stdclass;
+
+		$record->col1 = 'foo';
+		$record->col2 = 'bar';
+		$record->col3 = 'baz';
+
+		$mapper[] = $record;
+
+		
+	}
 }
