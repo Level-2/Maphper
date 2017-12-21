@@ -41,8 +41,8 @@ class MysqlAdapter implements DatabaseAdapter {
 		if ($val instanceof \DateTime) return 'DATETIME';
 		else if (is_int($val)) return  'INT(11)';
 		else if (is_double($val)) return 'DECIMAL(9,' . strlen($val) - strrpos($val, '.') - 1 . ')';
-		else if (is_string($val)) return strlen($val) < 256 ? 'VARCHAR(255)' : 'LONGBLOB';
-		return 'VARCHAR(255)';
+		else if (is_string($val)) return strlen($val) < 256 ? 'VARCHAR(191)' : 'LONGBLOB';
+		return 'VARCHAR(191)';
 	}
 
 	//Alter the database so that it can store $data
