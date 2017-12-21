@@ -13,7 +13,7 @@ class MySqlDatabaseTest extends PHPUnit_Framework_TestCase {
 
 		$config = new Tests\MySqlConfig();
 
-		$this->pdo = new \PDO('mysql:dbname=' . $config->schema . ';host=' . $config->server . ';port=' . $config->port, $config->username, $config->password, [PDO::MYSQL_ATTR_FOUND_ROWS => TRUE]);
+		$this->pdo = new \PDO('mysql:dbname=' . $config->schema . ';host=' . $config->server . ';port=' . $config->port, $config->username, $config->password);
 		$this->pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_SILENT);
 	}
 

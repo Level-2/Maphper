@@ -144,7 +144,12 @@ class Database implements \Maphper\DataSource {
 			$result = $this->insert($this->table, $this->primaryKey, $data);
 
 			if ($tryagain === false && $result->errorCode() === '00000' && $result->rowCount() === 0) {
- 				throw new \InvalidArgumentException('Record inserted into table ' . $this->table . ' fails table constraints');
+
+				$updateWhere = $this->crudBuilder->update($this->table, $this->primaryKey, $data);
+
+				$matched = $this->findByField($updateWhere->getArgs());
+
+				if (count($matched) == 0) throw new \InvalidArgumentException('Record inserted into table ' . $this->table . ' fails table constraints');
  			}
 			//If there was an error but PDO is silent, trigger the catch block anyway
 			if ($result->errorCode() !== '00000') throw new \Exception('Could not insert into ' . $this->table);
