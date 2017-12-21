@@ -469,17 +469,19 @@ class MockDatasourceTest extends PHPUnit_Framework_TestCase {
 
 		unset($mapper[13][15][3][4]);
 
+
 		$result = array_reduce(iterator_to_array($storage->getIterator()), function ($carry, $current) use ($values, $pk) {
             if ($carry !== null) return $carry;
             $matches = true;
             foreach ($pk as $key) {
                 $matches = ($current->$key === $values[$key]) && $matches;
             }
-            if ($matches) return $current;
-            else return null;
+
+            if ($matches) return $current ? $current : [];
+            else return [];
         });
 
-		$this->assertEquals(0, count($result));
+        $this->assertEquals(0, count($result ?? []));
 
 	}
 
