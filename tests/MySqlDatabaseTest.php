@@ -13,7 +13,7 @@ class MySqlDatabaseTest extends PHPUnit_Framework_TestCase {
 
 		$config = new Tests\MySqlConfig();
 
-		$this->pdo = new \PDO('mysql:dbname=' . $config->schema . ';host=' . $config->server . ';port=' . $config->port, $config->username, $config->password);
+		$this->pdo = new \PDO('mysql:dbname=' . $config->schema . ';host=' . $config->server . ';port=' . $config->port, $config->username, $config->password, [PDO::MYSQL_ATTR_FOUND_ROWS => TRUE]);
 		$this->pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_SILENT);
 	}
 
@@ -1113,7 +1113,7 @@ class MySqlDatabaseTest extends PHPUnit_Framework_TestCase {
 
 	public function testInsertNoEditModeNoDefaultValue() {
 
-		$this->expectException(\Exception::class);
+		$this->expectException(\InvalidArgumentException::class);
 
 		$this->pdo->query('DROP TABLE IF EXISTS `test`');
 		$this->pdo->query('CREATE TABLE IF NOT EXISTS test (`col1` VARCHAR(191) NOT NULL, `col2` VARCHAR(191) NOT NULL, PRIMARY KEY(`col1`)) ');
@@ -1128,7 +1128,7 @@ class MySqlDatabaseTest extends PHPUnit_Framework_TestCase {
 
 		$mapper[] = $record;
 
-		$this->assertEquals(1, count($mapper));
+		$this->assertEquals(0, count($mapper));
 
 		
 	}

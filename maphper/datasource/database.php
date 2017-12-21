@@ -131,6 +131,7 @@ class Database implements \Maphper\DataSource {
 	}
 
 	public function save($data, $tryagain = true) {
+		$tryagain = $tryagain && self::EDIT_STRUCTURE & $this->alterDb;
 		$new = false;
 		foreach ($this->primaryKey as $k) {
 			if (empty($data->$k)) {
@@ -141,11 +142,16 @@ class Database implements \Maphper\DataSource {
 
 		try {
 			$result = $this->insert($this->table, $this->primaryKey, $data);
+
+			if ($tryagain === false && $result->errorCode() === '00000' && $result->rowCount() === 0) {
+ 				throw new \InvalidArgumentException('Record inserted into table ' . $this->table . ' fails table constraints');
+ 			}
 			//If there was an error but PDO is silent, trigger the catch block anyway
-			if ($result->errorCode() !== "00000") throw new \Exception('Could not insert into ' . $this->table);
+			if ($result->errorCode() !== '00000') throw new \Exception('Could not insert into ' . $this->table);
+
 		}
 		catch (\Exception $e) {
-			if ($tryagain && self::EDIT_STRUCTURE & $this->alterDb) {
+			if ($tryagain) {
 				$this->adapter->alterDatabase($this->table, $this->primaryKey, $data);
 				$this->save($data, false);
 			}
@@ -169,7 +175,10 @@ class Database implements \Maphper\DataSource {
 			$error = 1;
 		}
 
- 		if ($error || $result->errorCode() !== "00000") $result = $this->adapter->query($this->crudBuilder->update($table, $primaryKey, $data));
+ 		if ($error || $result->errorCode() !== '00000') {
+ 			$result = $this->adapter->query($this->crudBuilder->update($table, $primaryKey, $data));
+ 		}
+
 		return $result;
 	}
 }
