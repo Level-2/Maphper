@@ -43,6 +43,10 @@ class SqliteAdapter implements DatabaseAdapter {
 				else return $stmt;				
 			}
 		}
+		//Handle SQLite when PDO_ERRMODE is set to SILENT
+		else {
+			throw new \Exception('Invalid query');
+		}
 	}
 	
 	public function lastInsertId() {

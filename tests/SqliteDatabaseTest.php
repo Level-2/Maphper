@@ -18,7 +18,7 @@ class SqliteDatabaseTest extends MySqlDatabaseTest {
 	protected function setUp() {
 		parent::setUp ();
 		$this->pdo = new PDO('sqlite:./test.db');
-		$this->pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+		$this->pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_SILENT);
 	}
 
 	protected function tearDown() {
