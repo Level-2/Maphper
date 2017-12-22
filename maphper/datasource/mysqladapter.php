@@ -136,4 +136,5 @@ class MysqlAdapter implements DatabaseAdapter {
 		//Sometimes a second pass is needed, if a column has gone from varchar -> int(11) a better int type may be needed
 		if ($runAgain) $this->optimiseColumns($table);
 	}
+
 }

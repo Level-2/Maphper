@@ -61,8 +61,10 @@ class Maphper implements \Countable, \ArrayAccess, \IteratorAggregate {
 		$results = $this->dataSource->findByField($this->settings['filter'],
 			['order' => $this->settings['sort'], 'limit' => $this->settings['limit'], 'offset' => $this->settings['offset'] ]);
 
+		$siblings = new \ArrayObject();
+
 		$results = array_map([$this, 'createNew'], $results);
-		$results = array_map([$this, 'wrap'], $results);
+		array_walk($results, [$this, 'wrap'], $siblings);
 
 		return $results;
 	}
@@ -140,16 +142,16 @@ class Maphper implements \Countable, \ArrayAccess, \IteratorAggregate {
 		return $injector->replaceDates($obj);
 	}
 
-	private function wrap($object) {
+	private function wrap($object, $key = null, $siblings = null) {
 		//see if any relations need overwriting
 		foreach ($this->relations as $name => $relation) {
 			if (isset($object->$name) && !($object->$name instanceof \Maphper\Relation) ) {
 				//After overwriting the relation, does the parent object ($object) need overwriting as well?
 				if ($relation->overwrite($object, $object->$name)) $this[] = $object;
-
 			}
 
-			$object->$name = $relation->getData($object);
+			$object->$name = $relation->getData($object, $siblings);
+			//var_dump($siblings);
 		}
 		return $object;
 	}

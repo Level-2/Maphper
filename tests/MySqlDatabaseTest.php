@@ -1132,4 +1132,24 @@ class MySqlDatabaseTest extends PHPUnit_Framework_TestCase {
 
 		
 	}
+
+/*
+	//Need some way of asserting this happens
+	public function testEagerLoad() {
+		$this->populateBlogsAuthors();
+
+		$blogs = new \Maphper\Maphper($this->getDataSource('blog', 'id', ['editmode' => true]));
+		$authors = new \Maphper\Maphper($this->getDataSource('author'));
+		$blogs->addRelation('author', new \Maphper\Relation\One($authors, 'authorId', 'id'));
+
+		//This should issue two queries
+		foreach ($blogs as $blog) {
+			echo 'iteration';
+			$aName = $blog->author->name;
+
+		}
+
+	}
+
+*/
 }

@@ -7,6 +7,7 @@ class One implements \Maphper\Relation {
 	private $parentObject;
 	private $criteria = [];
 	private $data;
+	private $siblings = [];
 
 	public function __construct(\Maphper\Maphper $mapper, $parentField, $localField, array $criteria = []) {
 		$this->mapper = $mapper;
@@ -15,10 +16,14 @@ class One implements \Maphper\Relation {
 		$this->criteria = $criteria;
 	}
 
-	public function getData($parentObject) {
+	public function getData($parentObject, &$siblings = null) {
 		//Don't actually fetch the related data, return an instance of $this that will lazy load data when __get is called
 		$clone = clone $this;
 		$clone->parentObject = $parentObject;
+		$siblings[] = $clone;
+		$clone->siblings = $siblings;
+
+	//	var_dump($siblings);
 		return $clone;
 	}
 
@@ -27,10 +32,39 @@ class One implements \Maphper\Relation {
 
 			if ($this->parentObject == null) throw new \Exception('Error, no object set');
 
-			if ($this->criteria) $this->data = $this->mapper->filter($this->criteria)->filter([$this->localField => $this->parentObject->{$this->parentField}])->item(0);
-			else $this->data = $this->mapper->filter([$this->localField => $this->parentObject->{$this->parentField}])->item(0);
+			$this->eagerLoad();
+			
 		}
 		return $this->data;
+	}
+
+	private function eagerLoad() {
+		$recordsToLoad = [];
+		//Get a list of records by FK to eager load	
+		foreach ($this->siblings as $sibling) {
+			$recordsToLoad[] = $sibling->parentObject->{$sibling->parentField};
+		}
+
+		$recordsToLoad = array_unique($recordsToLoad);
+		//Fetch the results so they're in the cache for the corresponding maphper object
+		if ($this->criteria) $results = $this->mapper->filter($this->criteira)->filter([$this->localField => $recordsToLoad]);
+		else $results = $this->mapper->filter([$this->localField => $recordsToLoad]);
+			
+		$cache = [];
+		foreach ($results as $result) {
+			$cache[$result->{$this->localField}] = $result; 
+		}
+
+		foreach ($this->siblings as $sibling) {
+			$sibling->data = $cache[$sibling->parentObject->{$this->parentField}];
+		}
+		/*
+		foreach ($this->siblings as $sibling) {
+			if ($sibling->criteria) $sibling->data = $sibling->mapper->filter($sibling->criteria)->filter([$sibling->localField => $sibling->parentObject->{$sibling->parentField}])->item(0);
+			else $sibling->data = $sibling->mapper->filter([$sibling->localField => $sibling->parentObject->{$this->parentField}])->item(0);
+		}
+		*/
+		
 	}
 
 	public function __call($func, array $args = []) {
