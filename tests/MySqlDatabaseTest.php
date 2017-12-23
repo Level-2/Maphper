@@ -1152,4 +1152,25 @@ class MySqlDatabaseTest extends PHPUnit_Framework_TestCase {
 	}
 
 */
+
+	public function testFilterObject() {
+		$this->populateBlogsAuthors();
+
+		$blogs = new \Maphper\Maphper($this->getDataSource('blog', 'id', ['editmode' => true]));
+		$authors = new \Maphper\Maphper($this->getDataSource('author'));
+		$blogs->addRelation('author', new \Maphper\Relation\One($authors, 'authorId', 'id'));
+
+		//Get an author
+		$author = $authors[1];
+
+		//now find all blogs by that author
+		$authorsBlogs = $blogs->filter([
+			'author' => $author
+		]);
+
+		foreach ($authorsBlogs as $blog) {
+			$this->assertEquals(1, $blog->authorId);
+		}
+
+	}
 }
