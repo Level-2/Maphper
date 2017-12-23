@@ -12,7 +12,16 @@ class PropertyWriter {
 		}
 	}
 
-	public function __set($field, $value) {
-		($this->closure)($field, $value);
+	public function write($data) {
+		if ($data != null) {
+			foreach ($data as $key => $value) {
+				($this->closure)($key,  $this->processDates($value));
+			}
+		}
+	}
+
+	private function processDates($obj) {
+		$injector = new DateInjector;
+		return $injector->replaceDates($obj);
 	}
 }

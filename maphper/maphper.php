@@ -123,17 +123,8 @@ class Maphper implements \Countable, \ArrayAccess, \IteratorAggregate {
 	private function createNew($data = [], $obj = null) {
 		if (!$obj) $obj = (is_callable($this->settings['resultClass'])) ? call_user_func($this->settings['resultClass']) : new $this->settings['resultClass'];
 		$writer = new Lib\PropertyWriter($obj);
-		if ($data != null) {
-			foreach ($data as $key => $value) {
-				$writer->$key = $this->processDates($value);
-			}
-		}
+		$writer->write($data);
 		return $obj;
-	}
-
-	private function processDates($obj) {
-		$injector = new Lib\DateInjector;
-		return $injector->replaceDates($obj);
 	}
 
 	private function wrap($object, $key = null, $siblings = null) {
