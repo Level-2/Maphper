@@ -19,11 +19,13 @@ class Maphper implements \Countable, \ArrayAccess, \IteratorAggregate {
 	private $relations = [];
 	private $settings = ['filter' => [], 'sort' => null, 'limit' => null, 'offset' => null, 'resultClass' => '\\stdClass'];
 	private $iterator = 0;
+	private $objectCreator;
 
 	public function __construct(DataSource $dataSource, array $settings = [], array $relations = []) {
 		$this->dataSource = $dataSource;
 		$this->settings = array_replace($this->settings, $settings);
 		$this->relations = $relations;
+		$this->objectCreator = new Lib\ObjectCreator($this->settings['reusltClass'] ?? null);
 	}
 
 	public function addRelation($name, Relation $relation) {
@@ -95,7 +97,9 @@ class Maphper implements \Countable, \ArrayAccess, \IteratorAggregate {
 		$value = $this->wrap($value);
 		$this->dataSource->save($value);
 		$value = $this->wrap((object) array_merge((array)$value, (array)$valueCopy));
-        $this->createNew($value, $valueObj);
+
+		$writer = new Lib\PropertyWriter($valueObj);
+		$writer->write($value);
 	}
 
 	public function offsetExists($offset) {
@@ -120,8 +124,8 @@ class Maphper implements \Countable, \ArrayAccess, \IteratorAggregate {
 		return $this->wrap($this->createNew($this->dataSource->findById($offset)));
 	}
 
-	private function createNew($data = [], $obj = null) {
-		if (!$obj) $obj = (is_callable($this->settings['resultClass'])) ? call_user_func($this->settings['resultClass']) : new $this->settings['resultClass'];
+	private function createNew($data = []) {
+		$obj = (is_callable($this->settings['resultClass'])) ? call_user_func($this->settings['resultClass']) : new $this->settings['resultClass'];
 		$writer = new Lib\PropertyWriter($obj);
 		$writer->write($data);
 		return $obj;
