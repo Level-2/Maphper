@@ -24,11 +24,6 @@ class Maphper implements \Countable, \ArrayAccess, \IteratorAggregate {
 		$this->dataSource = $dataSource;
 		$this->settings = array_replace($this->settings, $settings);
 		$this->relations = $relations;
-		if (!isset($this->settings['writeClosure'])) {
-			$this->settings['writeClosure'] = function ($field, $value) {	$this->$field = $value;	};
-		} elseif (! $this->settings['writeClosure'] instanceof \Closure) {
-			throw new \InvalidArgumentException('The mapper writeClosure must be an anonymous function');
-		}
 	}
 
 	public function addRelation($name, Relation $relation) {
@@ -127,11 +122,10 @@ class Maphper implements \Countable, \ArrayAccess, \IteratorAggregate {
 
 	private function createNew($data = [], $obj = null) {
 		if (!$obj) $obj = (is_callable($this->settings['resultClass'])) ? call_user_func($this->settings['resultClass']) : new $this->settings['resultClass'];
-		if (!($obj instanceof \stdclass)) $write = $this->settings['writeClosure']->bindTo($obj, $obj);
+		$writer = new Lib\PropertyWriter($obj);
 		if ($data != null) {
 			foreach ($data as $key => $value) {
-				if ($obj instanceof \stdclass) $obj->$key = $this->processDates($value);
-				else $write($key, $this->processDates($value));
+				$writer->$key = $this->processDates($value);
 			}
 		}
 		return $obj;
