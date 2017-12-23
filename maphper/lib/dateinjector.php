@@ -6,9 +6,7 @@ class DateInjector {
 
 	public function replaceDates($obj, $reset = true) {
 		//prevent infinite recursion, only process each object once
-		if ($reset) $this->processCache = new \SplObjectStorage();
-		if (is_object($obj) && $this->processCache->contains($obj)) return $obj;
-		else if (is_object($obj)) $this->processCache->attach($obj, true);
+		if ($this->checkCache($obj, $reset) == false) return $obj;
 
 		if (is_array($obj) || (is_object($obj) && ($obj instanceof \Iterator))) foreach ($obj as &$o) $o = $this->replaceDates($o, false);
 		if (is_string($obj) && isset($obj[0]) && is_numeric($obj[0]) && strlen($obj) <= 20) {
@@ -20,5 +18,14 @@ class DateInjector {
 			}
 		}
 		return $obj;
+	}
+
+	private function checkCache($obj, $reset) {
+		if ($reset) $this->processCache = new \SplObjectStorage();
+
+		if (is_object($obj) && $this->processCache->contains($obj)) return $obj;
+		else if (is_object($obj)) $this->processCache->attach($obj, true);
+
+		return false;
 	}
 }
