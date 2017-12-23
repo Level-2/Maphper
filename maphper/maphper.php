@@ -36,7 +36,6 @@ class Maphper implements \Countable, \ArrayAccess, \IteratorAggregate {
 	}
 
 	public function count($group = null) {
-		$this->wrapFilter();
 		return $this->dataSource->findAggregate('count', $group == null ? $this->dataSource->getPrimaryKey() : $group, $group, $this->settings['filter']);
 	}
 
@@ -53,6 +52,7 @@ class Maphper implements \Countable, \ArrayAccess, \IteratorAggregate {
 	}
 
 	private function getResults() {
+		$this->wrapFilter();
 		foreach ($this->settings['filter'] as $name => &$filter) {
 			if (isset($this->relations[$name])) {
 				$this->relations[$name]->overwrite($filter, $filter[$name]);

@@ -91,8 +91,6 @@ class One implements \Maphper\Relation {
 	}
 
 	public function getFilter($object) {
-	//	var_dump($object);
-	//	return [$this->parentField => $object->{$this->localField}];
-		return [];
+		return [$this->parentField => $object->{$this->localField}];
 	}
 }
