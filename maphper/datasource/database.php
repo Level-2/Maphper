@@ -11,14 +11,13 @@ class Database implements \Maphper\DataSource {
 	private $fields = '*';
 	private $defaultSort;
 	private $resultCache = [];
-	private $errors = [];
 	private $alterDb = false;
 	private $adapter;
 	private $crudBuilder;
 
 	public function __construct($db, $table, $primaryKey = 'id', array $options = []) {
-		if ($db instanceof \PDO) $this->adapter = $this->getAdapter($db);
-		else $this->adapter = $db;
+		$this->options = new DatabaseOptions($db, $options);
+		$this->adapter = $this->options->getAdapter();
 
 		$this->table = $table;
 		$this->primaryKey = is_array($primaryKey) ? $primaryKey : [$primaryKey];
@@ -26,15 +25,13 @@ class Database implements \Maphper\DataSource {
 		$this->crudBuilder = new \Maphper\Lib\CrudBuilder();
 		$this->selectBuilder = new \Maphper\Lib\SelectBuilder();
 
-		if (isset($options['fields'])) $this->fields = implode(',', array_map([$this->adapter, 'quote'], $options['fields']));
-		$this->defaultSort = (isset($options['defaultSort'])) ? $options['defaultSort'] : implode(', ', $this->primaryKey);
-		if (isset($options['editmode'])) $this->alterDb = $options['editmode'] == true ? self::EDIT_STRUCTURE | self::EDIT_INDEX | self::EDIT_OPTIMISE : $options['editmode'];
-		if (self::EDIT_OPTIMISE & $this->alterDb && rand(0,500) == 1) $this->adapter->optimiseColumns($table);
-	}
+		$this->fields = implode(',', array_map([$this->adapter, 'quote'], (array) $this->options->read('fields')));
 
-	private function getAdapter(\PDO $pdo) {
-        $adapter = '\\Maphper\\DataSource\\' . ucfirst($pdo->getAttribute(\PDO::ATTR_DRIVER_NAME)) . 'Adapter';
-		return new $adapter($pdo);
+		$this->defaultSort = $this->options->read('defaultSort') !== false ? $this->options->read('defaultSort')  : implode(', ', $this->primaryKey);
+
+		$this->alterDb = $this->options->getEditMode();
+
+		if (self::EDIT_OPTIMISE & $this->alterDb && rand(0,500) == 1) $this->adapter->optimiseColumns($table);
 	}
 
 	public function getPrimaryKey() {
