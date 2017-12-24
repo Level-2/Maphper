@@ -6,7 +6,7 @@ class DateInjector {
 
 	public function replaceDates($obj, $reset = true) {
 		//prevent infinite recursion, only process each object once
-		if ($this->checkCache($obj, $reset) == false) return $obj;
+		if ($this->checkCache($obj, $reset)) return $obj;
 
 		if (is_array($obj) || (is_object($obj) && ($obj instanceof \Iterator))) foreach ($obj as &$o) $o = $this->replaceDates($o, false);
 		if (is_string($obj) && isset($obj[0]) && is_numeric($obj[0]) && strlen($obj) <= 20) {
