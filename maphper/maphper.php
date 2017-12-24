@@ -87,8 +87,8 @@ class Maphper implements \Countable, \ArrayAccess, \IteratorAggregate {
 		if ($valueObj instanceof \Maphper\Relation) throw new \Exception();
 
 		//Extract private properties from the object
-		$propertyReader = new \Maphper\Lib\VisibilityOverride();
-		$value = $propertyReader->getProperties($valueObj);
+		$visibilityOverride = new \Maphper\Lib\VisibilityOverride($valueObj);
+		$value = $visibilityOverride->getProperties($valueObj);
 
 		$value = $this->processFilters($value);
 		$pk = $this->dataSource->getPrimaryKey();
@@ -98,8 +98,9 @@ class Maphper implements \Countable, \ArrayAccess, \IteratorAggregate {
 		$this->dataSource->save($value);
 		$value = $this->entity->create(array_merge((array)$value, (array)$valueCopy), $this->relations);
 
-		$writer = new Lib\PropertyWriter($valueObj);
-		$writer->write($value);
+		$visibilityOverride->write($value);
+		//$writer = new Lib\PropertyWriter($valueObj);
+		//$writer->write($value);
 	}
 
 	public function offsetExists($offset) {
