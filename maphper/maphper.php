@@ -19,13 +19,13 @@ class Maphper implements \Countable, \ArrayAccess, \IteratorAggregate {
 	private $relations = [];
 	private $settings = ['filter' => [], 'sort' => null, 'limit' => null, 'offset' => null, 'resultClass' => '\\stdClass'];
 	private $iterator = 0;
-	private $objectCreator;
+	private $entity;
 
 	public function __construct(DataSource $dataSource, array $settings = [], array $relations = []) {
 		$this->dataSource = $dataSource;
 		$this->settings = array_replace($this->settings, $settings);
 		$this->relations = $relations;
-		$this->objectCreator = new Lib\ObjectCreator($this->settings['reusltClass'] ?? null);
+		$this->entity = new Lib\Entity($this, $this->settings['resultClass'] ?? null);
 	}
 
 	public function addRelation($name, Relation $relation) {
@@ -47,6 +47,7 @@ class Maphper implements \Countable, \ArrayAccess, \IteratorAggregate {
 			}
 		}
 	}
+	
 
 	private function getResults() {
 		$this->wrapFilter();
@@ -60,8 +61,7 @@ class Maphper implements \Countable, \ArrayAccess, \IteratorAggregate {
 
 		$siblings = new \ArrayObject();
 
-		$results = array_map([$this, 'createNew'], $results);
-		array_walk($results, [$this, 'wrap'], $siblings);
+		foreach ($results as &$result) $result = $this->entity->create($result, $this->relations, $siblings);
 
 		return $results;
 	}
@@ -94,9 +94,9 @@ class Maphper implements \Countable, \ArrayAccess, \IteratorAggregate {
 		$pk = $this->dataSource->getPrimaryKey();
 		if ($offset !== null) $value->{$pk[0]} = $offset;
 		$valueCopy = clone $value;
-		$value = $this->wrap($value);
+		$value = $this->entity->wrap($this->relations, $value);
 		$this->dataSource->save($value);
-		$value = $this->wrap((object) array_merge((array)$value, (array)$valueCopy));
+		$value = $this->entity->create(array_merge((array)$value, (array)$valueCopy), $this->relations);
 
 		$writer = new Lib\PropertyWriter($valueObj);
 		$writer->write($value);
@@ -119,30 +119,9 @@ class Maphper implements \Countable, \ArrayAccess, \IteratorAggregate {
 		if (count($this->dataSource->getPrimaryKey()) > 1) return new MultiPk($this, $offset, $this->dataSource->getPrimaryKey());
         if (!empty($this->settings['filter'])) {
             $data = $this->dataSource->findByField(array_merge($this->settings['filter'], [$this->dataSource->getPrimaryKey()[0] => $offset]));
-            return $this->wrap($this->createNew(isset($data[0]) ? $data[0] : null));
+            return $this->entity->create(isset($data[0]) ? $data[0] : null, $this->relations);
         }
-		return $this->wrap($this->createNew($this->dataSource->findById($offset)));
-	}
-
-	private function createNew($data = []) {
-		$obj = (is_callable($this->settings['resultClass'])) ? call_user_func($this->settings['resultClass']) : new $this->settings['resultClass'];
-		$writer = new Lib\PropertyWriter($obj);
-		$writer->write($data);
-		return $obj;
-	}
-
-	private function wrap($object, $key = null, $siblings = null) {
-		//see if any relations need overwriting
-		foreach ($this->relations as $name => $relation) {
-			if (isset($object->$name) && !($object->$name instanceof \Maphper\Relation) ) {
-				//After overwriting the relation, does the parent object ($object) need overwriting as well?
-				if ($relation->overwrite($object, $object->$name)) $this[] = $object;
-			}
-
-			$object->$name = $relation->getData($object, $siblings);
-			//var_dump($siblings);
-		}
-		return $object;
+		return $this->entity->create($this->dataSource->findById($offset), $this->relations);
 	}
 
 	public function __call($method, $args) {
