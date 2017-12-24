@@ -99,8 +99,6 @@ class Maphper implements \Countable, \ArrayAccess, \IteratorAggregate {
 		$value = $this->entity->create(array_merge((array)$value, (array)$valueCopy), $this->relations);
 
 		$visibilityOverride->write($value);
-		//$writer = new Lib\PropertyWriter($valueObj);
-		//$writer->write($value);
 	}
 
 	public function offsetExists($offset) {
