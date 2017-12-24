@@ -8,5 +8,4 @@ interface DataSource {
 	public function deleteById($id);
 	public function deleteByField(array $fields);
 	public function save($data);
-	public function getErrors();
 }

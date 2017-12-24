@@ -46,10 +46,6 @@ class Database implements \Maphper\DataSource {
 		unset($this->cache[$id]);
 	}
 
-	public function getErrors() {
-		return $this->errors;
-	}
-
 	public function findById($id) {
 		if (!isset($this->cache[$id])) {
 			try {
