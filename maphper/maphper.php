@@ -46,8 +46,7 @@ class Maphper implements \Countable, \ArrayAccess, \IteratorAggregate {
 				unset($this->settings['filter'][$name]);
 			}
 		}
-	}
-	
+	}	
 
 	private function getResults() {
 		$this->wrapFilter();

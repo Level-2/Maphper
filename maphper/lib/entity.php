@@ -13,7 +13,7 @@ class Entity {
 	
 	public function create($data = [], $relations = [], $siblings = []) {
 		$obj = (is_callable($this->className)) ? call_user_func($this->className) : new $this->className;
-		$writer = new PropertyWriter($obj);
+		$writer = new VisibilityOverride($obj);
 		$writer->write($data);
 		return $this->wrap($relations, $obj, $siblings);
 	}
