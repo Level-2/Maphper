@@ -31,12 +31,13 @@ class SqliteAdapter implements DatabaseAdapter {
 			try {
 				if (count($args) > 0) $res = $stmt->execute($args);
 				else $res = $stmt->execute();
+				if ($stmt->errorCode() !== '00000') throw new \Exception('Invalid query');
 				if (substr($query->getSql(), 0, 6) === 'SELECT') return $stmt->fetchAll(\PDO::FETCH_OBJ);
 				else return $stmt;
 			}
 			catch (\Exception $e) {
 				//SQLite causes an error if when the DB schema changes, rebuild $stmt and try again.
-				if ($e->getMessage() == 'SQLSTATE[HY000]: General error: 17 database schema has changed') {
+				if ($stmt->errorInfo()[2] == 'database schema has changed') {
 					unset($this->queryCache[$queryId]);
 					return $this->query($query);	
 				}
