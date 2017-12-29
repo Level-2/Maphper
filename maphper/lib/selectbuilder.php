@@ -30,6 +30,11 @@ class SelectBuilder {
 		$sql = [];
 
 		foreach ($fields as $key => $value) {
+            if ($value instanceof \DateTime) {
+    			if ($value->format('H:i:s')  == '00:00:00') $value = $value->format('Y-m-d');
+    			else $value = $value->format('Y-m-d H:i:s');
+    		}
+
 			if (is_numeric($key) && is_array($value)) {
 				$result = $this->createSql($value, $key);
 				foreach ($result['args'] as $arg_key => $arg) $args[$arg_key] = $arg;

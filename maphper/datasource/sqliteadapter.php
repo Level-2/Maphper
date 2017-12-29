@@ -12,42 +12,33 @@ class SqliteAdapter implements DatabaseAdapter {
 	public function quote($str) {
 		return '`' . str_replace('.', '`.`', trim($str, '`')) . '`';
 	}
-		
-	public function query(\Maphper\Lib\Query $query) {
-		$queryId = md5($query->getSql());
+
+    private function getCachedStmt($sql) {
+		$queryId = md5($sql);
 		if (isset($this->queryCache[$queryId])) $stmt = $this->queryCache[$queryId];
 		else {
-			$stmt = $this->pdo->prepare($query->getSql(), [\PDO::ATTR_CURSOR => \PDO::CURSOR_FWDONLY]);
+			$stmt = $this->pdo->prepare($sql, [\PDO::ATTR_CURSOR => \PDO::CURSOR_FWDONLY]);
 			if ($stmt) $this->queryCache[$queryId] = $stmt;
 		}
-		
+		return $stmt;
+	}
+
+	public function query(\Maphper\Lib\Query $query) {
+		$queryId = md5($query->getSql());
+        $stmt = $this->getCachedStmt($query->getSql());
 		$args = $query->getArgs();
-		foreach ($args as &$arg) if ($arg instanceof \DateTime) {
-			if ($arg->format('H:i:s')  == '00:00:00') $arg = $arg->format('Y-m-d');
-			else $arg = $arg->format('Y-m-d H:i:s');
-		}
-				
-		if ($stmt !== false) {
-			try {
-				if (count($args) > 0) $res = $stmt->execute($args);
-				else $res = $stmt->execute();
-				if ($stmt->errorCode() !== '00000') throw new \Exception('Invalid query');
-				if (substr($query->getSql(), 0, 6) === 'SELECT') return $stmt->fetchAll(\PDO::FETCH_OBJ);
-				else return $stmt;
-			}
-			catch (\Exception $e) {
-				//SQLite causes an error if when the DB schema changes, rebuild $stmt and try again.
-				if ($stmt->errorInfo()[2] == 'database schema has changed') {
-					unset($this->queryCache[$queryId]);
-					return $this->query($query);	
-				}
-				else return $stmt;				
-			}
-		}
-		//Handle SQLite when PDO_ERRMODE is set to SILENT
-		else {
-			throw new \Exception('Invalid query');
-		}
+
+        //Handle SQLite when PDO_ERRMODE is set to SILENT
+        if ($stmt === false) throw new \Exception('Invalid query');
+
+        $stmt->execute($args);
+        if ($stmt->errorCode() !== '00000' && $stmt->errorInfo()[2] == 'database schema has changed') {
+			unset($this->queryCache[$queryId]);
+			return $this->query($query);
+        }
+
+        if (substr($query->getSql(), 0, 6) === 'SELECT') return $stmt->fetchAll(\PDO::FETCH_OBJ);
+        else return $stmt;
 	}
 	
 	public function lastInsertId() {
