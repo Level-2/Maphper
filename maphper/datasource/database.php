@@ -145,18 +145,21 @@ class Database implements \Maphper\DataSource {
 			if ($result->errorCode() !== '00000') throw new \Exception('Could not insert into ' . $this->table);
 		}
 		catch (\Exception $e) {
-			if ($tryagain) {
-				$this->adapter->alterDatabase($this->table, $this->primaryKey, $data);
-				$this->save($data, false);
-			}
-			else throw $e;
+			if (!$tryagain) throw $e;
+
+			$this->adapter->alterDatabase($this->table, $this->primaryKey, $data);
+			$this->save($data, false);
 		}
 
-		if ($new && count($this->primaryKey) == 1) $data->{$this->primaryKey[0]} = $this->adapter->lastInsertId();
+		$this->updatePK($data, $new);
 		//Something has changed, clear any cached results as they may now be incorrect
 		$this->resultCache = [];
 		$this->updateCache($data);
 	}
+
+    private function updatePK($data, $new) {
+        if ($new && count($this->primaryKey) == 1) $data->{$this->primaryKey[0]} = $this->adapter->lastInsertId();
+    }
 
     private function checkIfUpdateWorked($data) {
         $updateWhere = $this->crudBuilder->update($this->table, $this->primaryKey, $data);
@@ -181,11 +184,16 @@ class Database implements \Maphper\DataSource {
 		}
 
  		if ($error || $result->errorCode() !== '00000') {
- 			$result = $this->adapter->query($this->crudBuilder->update($table, $primaryKey, $data));
- 		}
-
-        if ($result->rowCount() === 0) $this->checkIfUpdateWorked($data);
+            $result = $this->tryUpdate($table, $primaryKey, $data);
+        }
 
 		return $result;
 	}
+
+    private function tryUpdate($table, array $primaryKey, $data) {
+        $result = $this->adapter->query($this->crudBuilder->update($table, $primaryKey, $data));
+        if ($result->rowCount() === 0) $this->checkIfUpdateWorked($data);
+
+        return $result;
+    }
 }
