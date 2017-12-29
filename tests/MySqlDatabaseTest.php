@@ -386,6 +386,19 @@ class MySqlDatabaseTest extends PHPUnit_Framework_TestCase {
 		$this->assertEquals('Title Updated', $blog->getTitle());
 	}
 
+    public function testWritePrivatePKWhenUpdating() {
+        $this->populateBlogs();
+        $blogs = new \Maphper\Maphper($this->getDataSource('blog', 'id'), ['resultClass' => 'BlogPrivate']);
+
+        $blog = new BlogPrivate();
+        $blog->setTitle("Test");
+
+        $blogs[] = $blog;
+
+        $this->assertInstanceOf('BlogPrivate', $blog);
+        $this->assertEquals(21, $blog->getID());
+    }
+
 	public function testResultClassPrivatePropertiesWriteWhenUpdating() {
 		$this->dropTable('blog');
 		$blogs = new \Maphper\Maphper($this->getDataSource('blog', 'id', ['editmode' => true]), ['resultClass' => 'Blog']);

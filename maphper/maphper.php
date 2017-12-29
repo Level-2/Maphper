@@ -95,9 +95,8 @@ class Maphper implements \Countable, \ArrayAccess, \IteratorAggregate {
 		$valueCopy = clone $value;
 		$value = $this->entity->wrap($this->relations, $value);
 		$this->dataSource->save($value);
-		$value = $this->entity->create(array_merge((array)$value, (array)$valueCopy), $this->relations);
-
 		$visibilityOverride->write($value);
+        $this->entity->create((array_merge((array)$value, (array)$valueCopy)), $this->relations);
 	}
 
 	public function offsetExists($offset) {

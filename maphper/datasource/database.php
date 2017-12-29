@@ -151,7 +151,7 @@ class Database implements \Maphper\DataSource {
 			}
 			else throw $e;
 		}
-		//TODO: This will error if the primary key is a private field
+
 		if ($new && count($this->primaryKey) == 1) $data->{$this->primaryKey[0]} = $this->adapter->lastInsertId();
 		//Something has changed, clear any cached results as they may now be incorrect
 		$this->resultCache = [];
