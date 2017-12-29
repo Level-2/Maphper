@@ -6,6 +6,7 @@ class Database implements \Maphper\DataSource {
 	const EDIT_OPTIMISE = 4;
 
 	private $table;
+    private $options;
 	private $cache = [];
 	private $primaryKey;
 	private $fields = '*';
@@ -14,6 +15,7 @@ class Database implements \Maphper\DataSource {
 	private $alterDb = false;
 	private $adapter;
 	private $crudBuilder;
+    private $selecctBuilder;
 
 	public function __construct($db, $table, $primaryKey = 'id', array $options = []) {
 		$this->options = new DatabaseOptions($db, $options);

@@ -4,6 +4,7 @@ class MultiPk implements \ArrayAccess {
 	private $parent;
 	private $primaryKey;
 	private $lookup;
+    private $mapper;
 
 	public function __construct(Maphper $mapper, $lookup, array $primaryKey, MultiPk $parent = null) {
 		$this->parent = $parent;

@@ -56,7 +56,6 @@ class Mock implements \Maphper\DataSource {
     }
 
   	public function findAggregate($function, $field, $group = null, array $criteria = [], array $options = []) {
-        $array = iterator_to_array($this->data);
         return $function($this->findByField($criteria));
     }
 
