@@ -123,31 +123,26 @@ class Database implements \Maphper\DataSource {
 		$this->resultCache = [];
 	}
 
+    private function getIfNew($data) {
+        $new = false;
+        foreach ($this->primaryKey as $k) {
+            if (empty($data->$k)) {
+                $data->$k = null;
+                $new = true;
+            }
+        }
+        return $new;
+    }
+
 	public function save($data, $tryagain = true) {
 		$tryagain = $tryagain && self::EDIT_STRUCTURE & $this->alterDb;
-		$new = false;
-		foreach ($this->primaryKey as $k) {
-			if (empty($data->$k)) {
-				$data->$k = null;
-				$new = true;
-			}
-		}
+        $new = $this->getIfNew($data);
 
 		try {
-			$result = $this->insert($this->table, $this->primaryKey, $data);
+            $result = $this->insert($this->table, $this->primaryKey, $data);
 
 			//If there was an error but PDO is silent, trigger the catch block anyway
 			if ($result->errorCode() !== '00000') throw new \Exception('Could not insert into ' . $this->table);
-
-			if ($tryagain === false && $result->rowCount() === 0) {
-
-				$updateWhere = $this->crudBuilder->update($this->table, $this->primaryKey, $data);
-
-				$matched = $this->findByField($updateWhere->getArgs());
-
-				if (count($matched) == 0) throw new \InvalidArgumentException('Record inserted into table ' . $this->table . ' fails table constraints');
- 			}
-			
 		}
 		catch (\Exception $e) {
 			if ($tryagain) {
@@ -160,10 +155,21 @@ class Database implements \Maphper\DataSource {
 		if ($new && count($this->primaryKey) == 1) $data->{$this->primaryKey[0]} = $this->adapter->lastInsertId();
 		//Something has changed, clear any cached results as they may now be incorrect
 		$this->resultCache = [];
-		$pkValue = $data->{$this->primaryKey[0]};
+		$this->updateCache($data);
+	}
+
+    private function checkIfUpdateWorked($data) {
+        $updateWhere = $this->crudBuilder->update($this->table, $this->primaryKey, $data);
+        $matched = $this->findByField($updateWhere->getArgs());
+
+        if (count($matched) == 0) throw new \InvalidArgumentException('Record inserted into table ' . $this->table . ' fails table constraints');
+    }
+
+    private function updateCache($data) {
+        $pkValue = $data->{$this->primaryKey[0]};
 		if (isset($this->cache[$pkValue])) $this->cache[$pkValue] = (object) array_merge((array)$this->cache[$pkValue], (array)$data);
 		else $this->cache[$pkValue] = $data;
-	}
+    }
 
 	private function insert($table, array $primaryKey, $data) {
 		$error = 0;
@@ -177,6 +183,8 @@ class Database implements \Maphper\DataSource {
  		if ($error || $result->errorCode() !== '00000') {
  			$result = $this->adapter->query($this->crudBuilder->update($table, $primaryKey, $data));
  		}
+
+        if ($result->rowCount() === 0) $this->checkIfUpdateWorked($data);
 
 		return $result;
 	}
