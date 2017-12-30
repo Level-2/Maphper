@@ -61,7 +61,7 @@ class SqliteAdapter implements DatabaseAdapter {
 	public function alterDatabase($table, array $primaryKey, $data) {
 		//Unset query cache, otherwise it causes:
 		// SQLSTATE[HY000]: General error: 17 database schema has changed
-		$this->queryCache = [];
+		$this->stmtCache->clearCache();
 
 		$affix = '_'.substr(md5($table), 0, 6);
 		$this->createTable($table . $affix, $primaryKey, $data);

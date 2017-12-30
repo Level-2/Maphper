@@ -25,4 +25,8 @@ class StmtCache {
     public function deleteQueryFromCache($sql) {
         unset($this->queryCache[$this->getQueryId($sql)]);
     }
+
+    public function clearCache() {
+        $this->queryCache = [];
+    }
 }
