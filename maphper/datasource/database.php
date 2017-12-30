@@ -7,16 +7,15 @@ class Database implements \Maphper\DataSource {
 
 	private $table;
     private $options;
-	private $cache = [];
 	private $primaryKey;
 	private $fields = '*';
 	private $defaultSort;
 	private $adapter;
 	private $crudBuilder;
-    private $selectBuilder;
     private $whereBuilder;
     private $databaseModify;
     private $databaseSelect;
+    private $alterDb;
 
 	public function __construct($db, $table, $primaryKey = 'id', array $options = []) {
 		$this->options = new DatabaseOptions($db, $options);
@@ -26,14 +25,16 @@ class Database implements \Maphper\DataSource {
 		$this->primaryKey = is_array($primaryKey) ? $primaryKey : [$primaryKey];
 
 		$this->crudBuilder = new \Maphper\Lib\CrudBuilder();
-		$this->selectBuilder = new \Maphper\Lib\SelectBuilder();
         $this->whereBuilder = new \Maphper\Lib\Sql\WhereBuilder();
 
 		$this->fields = implode(',', array_map([$this->adapter, 'quote'], (array) $this->options->read('fields')));
 
-		$defaultSort = $this->options->read('defaultSort') !== false ? $this->options->read('defaultSort')  : implode(', ', $this->primaryKey);
+		$this->defaultSort = $this->options->read('defaultSort') !== false ? $this->options->read('defaultSort')  : implode(', ', $this->primaryKey);
+
         $this->databaseModify = new DatabaseModify($this->adapter, $this->options->getEditMode(), $this->table);
-        $this->databaseSelect = new DatabaseSelect($this->adapter, $this->databaseModify, $defaultSort, $this->table);
+        $this->databaseSelect = new DatabaseSelect($this->adapter, $this->databaseModify, $this->table);
+
+        $this->alterDb = $this->options->getEditMode();
 
 		$this->databaseModify->optimizeColumns();
 	}
@@ -44,52 +45,19 @@ class Database implements \Maphper\DataSource {
 
 	public function deleteById($id) {
 		$this->adapter->query($this->crudBuilder->delete($this->table, [$this->primaryKey[0] . ' = :id'], [':id' => $id], 1));
-		unset($this->cache[$id]);
+		$this->databaseSelect->deleteIDFromCache($id);
 	}
 
 	public function findById($id) {
-		if (!isset($this->cache[$id])) {
-			try {
-				$result = $this->selectQuery($this->selectBuilder->select($this->table, $this->getPrimaryKey()[0] . ' = :id', [':id' => $id], ['limit' => 1]));
-			}
-			catch (\Exception $e) {
-			}
-
-			if (isset($result[0])) 	$this->cache[$id] = $result[0];
-			else return null;
-		}
-		return $this->cache[$id];
+		return $this->databaseSelect->findById($id, $this->getPrimaryKey()[0]);
 	}
 
 	public function findAggregate($function, $field, $group = null, array $criteria = [], array $options = []) {
-		//Cannot count/sum/max multiple fields, pick the first one. This should only come into play when trying to count() a mapper with multiple primary keys
-		if (is_array($field)) $field = $field[0];
-		$query = $this->whereBuilder->createSql($criteria);
-
-		try {
-			$this->databaseModify->addIndex(array_keys($query['args']));
-			$this->databaseModify->addIndex(explode(',', $group));
-			$result = $this->selectQuery($this->selectBuilder->aggregate($this->table, $function, $field, $query['sql'], $query['args'], $group));
-
-			return $this->determineAggregateResult($result, $group, $field);
-		}
-		catch (\Exception $e) {
-			return $group ? [] : 0;
-		}
+		return $this->databaseSelect->findAggregate($function, $field, $group, $criteria, $options);
 	}
 
-    private function determineAggregateResult($result, $group, $field) {
-        if ($group != null) {
-            $ret = [];
-            foreach ($result as $res) $ret[$res->$field] = $res->val;
-            return $ret;
-        }
-        else if (isset($result[0])) return $result[0]->val;
-        else return 0;
-    }
-
 	public function findByField(array $fields, $options = []) {
-        return $this->databaseSelect->findByField($fields, $options);
+        return $this->databaseSelect->findByField($fields, $options, $this->defaultSort);
 	}
 
 	public function deleteByField(array $fields, array $options = []) {
@@ -98,7 +66,7 @@ class Database implements \Maphper\DataSource {
 		$this->databaseModify->addIndex(array_keys($query['args']));
 
 		//Clear the cache
-		$this->cache = [];
+		$this->databaseSelect->clearIDCache();
 		$this->databaseSelect->clearResultCache();
 	}
 
@@ -132,7 +100,7 @@ class Database implements \Maphper\DataSource {
 		$this->updatePK($data, $new);
 		//Something has changed, clear any cached results as they may now be incorrect
 		$this->databaseSelect->clearResultCache();
-		$this->updateCache($data);
+		$this->databaseSelect->updateCache($data, $data->{$this->primaryKey[0]});
 	}
 
     private function getTryAgain($tryagain) {
@@ -147,12 +115,6 @@ class Database implements \Maphper\DataSource {
         $updateWhere = $this->whereBuilder->createSql($data);
         $matched = $this->findByField($updateWhere['args']);
         if (count($matched) == 0) throw new \InvalidArgumentException('Record inserted into table ' . $this->table . ' fails table constraints');
-    }
-
-    private function updateCache($data) {
-        $pkValue = $data->{$this->primaryKey[0]};
-		if (isset($this->cache[$pkValue])) $this->cache[$pkValue] = (object) array_merge((array)$this->cache[$pkValue], (array)$data);
-		else $this->cache[$pkValue] = $data;
     }
 
 	private function insert($table, array $primaryKey, $data) {
