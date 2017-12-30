@@ -73,20 +73,20 @@ class Database implements \Maphper\DataSource {
 			$this->addIndex(explode(',', $group));
 			$result = $this->adapter->query($this->selectBuilder->aggregate($this->table, $function, $field, $query['sql'], $query['args'], $group));
 
-			return $this->determineAggregateResult($result, $group);
+			return $this->determineAggregateResult($result, $group, $field);
 		}
 		catch (\Exception $e) {
 			return $group ? [] : 0;
 		}
 	}
 
-    private function determineAggregateResult($result, $group) {
-        if (isset($result[0]) && $group == null) return $result[0]->val;
-        else if ($group != null) {
+    private function determineAggregateResult($result, $group, $field) {
+        if ($group != null) {
             $ret = [];
             foreach ($result as $res) $ret[$res->$field] = $res->val;
             return $ret;
         }
+        else if (isset($result[0])) return $result[0]->val;
         else return 0;
     }
 
