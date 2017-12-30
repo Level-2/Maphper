@@ -15,7 +15,7 @@ class Database implements \Maphper\DataSource {
 	private $alterDb = false;
 	private $adapter;
 	private $crudBuilder;
-    private $selecctBuilder;
+    private $selectBuilder;
 
 	public function __construct($db, $table, $primaryKey = 'id', array $options = []) {
 		$this->options = new DatabaseOptions($db, $options);
@@ -33,8 +33,12 @@ class Database implements \Maphper\DataSource {
 
 		$this->alterDb = $this->options->getEditMode();
 
-		if (self::EDIT_OPTIMISE & $this->alterDb && rand(0,500) == 1) $this->adapter->optimiseColumns($table);
+		$this->optimizeColumns();
 	}
+
+    private function optimizeColumns() {
+        if (self::EDIT_OPTIMISE & $this->alterDb && rand(0,500) == 1) $this->adapter->optimiseColumns($this->table);
+    }
 
 	public function getPrimaryKey() {
 		return $this->primaryKey;
@@ -51,7 +55,6 @@ class Database implements \Maphper\DataSource {
 				$result = $this->adapter->query($this->selectBuilder->select($this->table, [$this->getPrimaryKey()[0] . ' = :id'], [':id' => $id], ['limit' => 1]));
 			}
 			catch (\Exception $e) {
-				$this->errors[] = $e;
 			}
 
 			if (isset($result[0])) 	$this->cache[$id] = $result[0];
@@ -70,19 +73,22 @@ class Database implements \Maphper\DataSource {
 			$this->addIndex(explode(',', $group));
 			$result = $this->adapter->query($this->selectBuilder->aggregate($this->table, $function, $field, $query['sql'], $query['args'], $group));
 
-			if (isset($result[0]) && $group == null) return $result[0]->val;
-			else if ($group != null) {
-				$ret = [];
-				foreach ($result as $res) $ret[$res->$field] = $res->val;
-				return $ret;
-			}
-			else return 0;
+			return $this->determineAggregateResult($result, $group);
 		}
 		catch (\Exception $e) {
-			$this->errors[] = $e;
 			return $group ? [] : 0;
 		}
 	}
+
+    private function determineAggregateResult($result, $group) {
+        if (isset($result[0]) && $group == null) return $result[0]->val;
+        else if ($group != null) {
+            $ret = [];
+            foreach ($result as $res) $ret[$res->$field] = $res->val;
+            return $ret;
+        }
+        else return 0;
+    }
 
 	private function addIndex($args) {
 		if (self::EDIT_INDEX & $this->alterDb) $this->adapter->addIndex($this->table, $args);
@@ -137,7 +143,6 @@ class Database implements \Maphper\DataSource {
     }
 
 	public function save($data, $tryagain = true) {
-		$tryagain = $tryagain && self::EDIT_STRUCTURE & $this->alterDb;
         $new = $this->getIfNew($data);
 
 		try {
@@ -147,7 +152,7 @@ class Database implements \Maphper\DataSource {
 			if ($result->errorCode() !== '00000') throw new \Exception('Could not insert into ' . $this->table);
 		}
 		catch (\Exception $e) {
-			if (!$tryagain) throw $e;
+			if (!$this->getTryAgain($tryagain)) throw $e;
 
 			$this->adapter->alterDatabase($this->table, $this->primaryKey, $data);
 			$this->save($data, false);
@@ -158,6 +163,10 @@ class Database implements \Maphper\DataSource {
 		$this->resultCache = [];
 		$this->updateCache($data);
 	}
+
+    private function getTryAgain($tryagain) {
+        return $tryagain && self::EDIT_STRUCTURE & $this->alterDb;
+    }
 
     private function updatePK($data, $new) {
         if ($new && count($this->primaryKey) == 1) $data->{$this->primaryKey[0]} = $this->adapter->lastInsertId();
