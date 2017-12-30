@@ -11,12 +11,12 @@ class Database implements \Maphper\DataSource {
 	private $primaryKey;
 	private $fields = '*';
 	private $defaultSort;
-	private $resultCache = [];
-	private $alterDb = false;
 	private $adapter;
 	private $crudBuilder;
     private $selectBuilder;
     private $whereBuilder;
+    private $databaseModify;
+    private $databaseSelect;
 
 	public function __construct($db, $table, $primaryKey = 'id', array $options = []) {
 		$this->options = new DatabaseOptions($db, $options);
@@ -31,16 +31,12 @@ class Database implements \Maphper\DataSource {
 
 		$this->fields = implode(',', array_map([$this->adapter, 'quote'], (array) $this->options->read('fields')));
 
-		$this->defaultSort = $this->options->read('defaultSort') !== false ? $this->options->read('defaultSort')  : implode(', ', $this->primaryKey);
+		$defaultSort = $this->options->read('defaultSort') !== false ? $this->options->read('defaultSort')  : implode(', ', $this->primaryKey);
+        $this->databaseModify = new DatabaseModify($this->adapter, $this->options->getEditMode(), $this->table);
+        $this->databaseSelect = new DatabaseSelect($this->adapter, $this->databaseModify, $defaultSort, $this->table);
 
-		$this->alterDb = $this->options->getEditMode();
-
-		$this->optimizeColumns();
+		$this->databaseModify->optimizeColumns();
 	}
-
-    private function optimizeColumns() {
-        if (self::EDIT_OPTIMISE & $this->alterDb && rand(0,500) == 1) $this->adapter->optimiseColumns($this->table);
-    }
 
 	public function getPrimaryKey() {
 		return $this->primaryKey;
@@ -71,8 +67,8 @@ class Database implements \Maphper\DataSource {
 		$query = $this->whereBuilder->createSql($criteria);
 
 		try {
-			$this->addIndex(array_keys($query['args']));
-			$this->addIndex(explode(',', $group));
+			$this->databaseModify->addIndex(array_keys($query['args']));
+			$this->databaseModify->addIndex(explode(',', $group));
 			$result = $this->selectQuery($this->selectBuilder->aggregate($this->table, $function, $field, $query['sql'], $query['args'], $group));
 
 			return $this->determineAggregateResult($result, $group, $field);
@@ -92,38 +88,18 @@ class Database implements \Maphper\DataSource {
         else return 0;
     }
 
-	private function addIndex($args) {
-		if (self::EDIT_INDEX & $this->alterDb) $this->adapter->addIndex($this->table, $args);
-	}
-
 	public function findByField(array $fields, $options = []) {
-		$cacheId = md5(serialize(func_get_args()));
-		if (!isset($this->resultCache[$cacheId])) {
-			$query = $this->whereBuilder->createSql($fields);
-
-			if (!isset($options['order'])) $options['order'] = $this->defaultSort;
-
-			try {
-				$this->resultCache[$cacheId] = $this->selectQuery($this->selectBuilder->select($this->table, $query['sql'], $query['args'], $options));
-				$this->addIndex(array_keys($query['args']));
-				$this->addIndex(explode(',', $options['order']));
-			}
-			catch (\Exception $e) {
-				$this->errors[] = $e;
-				$this->resultCache[$cacheId] = [];
-			}
-		}
-		return $this->resultCache[$cacheId];
+        return $this->databaseSelect->findByField($fields, $options);
 	}
 
 	public function deleteByField(array $fields, array $options = []) {
 		$query = $this->whereBuilder->createSql($fields);
 		$this->adapter->query($this->crudBuilder->delete($this->table, $query['sql'], $query['args'], $options['limit'], null, $options['order']));
-		$this->addIndex(array_keys($query['args']));
+		$this->databaseModify->addIndex(array_keys($query['args']));
 
 		//Clear the cache
 		$this->cache = [];
-		$this->resultCache = [];
+		$this->databaseSelect->clearResultCache();
 	}
 
     private function getIfNew($data) {
@@ -155,7 +131,7 @@ class Database implements \Maphper\DataSource {
 
 		$this->updatePK($data, $new);
 		//Something has changed, clear any cached results as they may now be incorrect
-		$this->resultCache = [];
+		$this->databaseSelect->clearResultCache();
 		$this->updateCache($data);
 	}
 
@@ -170,7 +146,6 @@ class Database implements \Maphper\DataSource {
     private function checkIfUpdateWorked($data) {
         $updateWhere = $this->whereBuilder->createSql($data);
         $matched = $this->findByField($updateWhere['args']);
-
         if (count($matched) == 0) throw new \InvalidArgumentException('Record inserted into table ' . $this->table . ' fails table constraints');
     }
 
