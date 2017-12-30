@@ -7,6 +7,8 @@ Maphper - A php ORM using the Data Mapper pattern
 A work in progress!
 
 
+[![Scrutinizer-CI](https://scrutinizer-ci.com/g/Level-2/Maphper/badges/quality-score.png?b=master)](https://scrutinizer-ci.com/g/Level-2/Maphper/)
+
 
 Features:
 --------
