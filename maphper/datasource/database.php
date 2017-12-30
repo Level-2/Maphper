@@ -52,7 +52,7 @@ class Database implements \Maphper\DataSource {
 	public function findById($id) {
 		if (!isset($this->cache[$id])) {
 			try {
-				$result = $this->adapter->query($this->selectBuilder->select($this->table, [$this->getPrimaryKey()[0] . ' = :id'], [':id' => $id], ['limit' => 1]));
+				$result = $this->adapter->query($this->selectBuilder->select($this->table, $this->getPrimaryKey()[0] . ' = :id', [':id' => $id], ['limit' => 1]));
 			}
 			catch (\Exception $e) {
 			}
@@ -101,8 +101,6 @@ class Database implements \Maphper\DataSource {
 
 			if (!isset($options['order'])) $options['order'] = $this->defaultSort;
 
-			$query['sql'] = array_filter($query['sql']);
-
 			try {
 				$this->resultCache[$cacheId] = $this->adapter->query($this->selectBuilder->select($this->table, $query['sql'], $query['args'], $options));
 				$this->addIndex(array_keys($query['args']));
@@ -118,7 +116,6 @@ class Database implements \Maphper\DataSource {
 
 	public function deleteByField(array $fields, array $options = []) {
 		$query = $this->selectBuilder->createSql($fields, \Maphper\Maphper::FIND_EXACT | \Maphper\Maphper::FIND_AND);
-        $query['sql'] = array_filter($query['sql']);
 		$this->adapter->query($this->crudBuilder->delete($this->table, $query['sql'], $query['args'], $options['limit'], null, $options['order']));
 		$this->addIndex(array_keys($query['args']));
 

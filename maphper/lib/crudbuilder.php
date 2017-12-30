@@ -5,11 +5,11 @@ class CrudBuilder {
 		return '`' . str_replace('.', '`.`', trim($str, '`')) . '`';
 	}
 
-	public function delete($table, array $criteria, $args, $limit = null, $offset = null, $order = null) {
+	public function delete($table, $criteria, $args, $limit = null, $offset = null, $order = null) {
 		$limit = $limit ? ' LIMIT ' . $limit : '';
 		$offset = $offset ? ' OFFSET ' . $offset : '';
         $order = $order ? ' ORDER BY ' . $order : '';
-		return new Query('DELETE FROM ' . $table . ' WHERE ' . (!empty($criteria) ? implode(' AND ', $criteria) : '1 = 1 ') . $order . $limit . $offset, $args);
+		return new Query('DELETE FROM ' . $table . ' WHERE ' . ($criteria ?: '1 = 1 ') . $order . $limit . $offset, $args);
 	}
 
 

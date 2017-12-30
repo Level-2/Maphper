@@ -2,9 +2,8 @@
 namespace Maphper\Lib;
 class SelectBuilder {
 
-	public function select($table, array $criteria, $args, $options = []) {
-		$where = count($criteria) > 0 ? ' WHERE ' . implode(' AND ', $criteria) : '';
-		//$limit = $limit ? ' LIMIT ' . $limit : '';
+	public function select($table, $criteria, $args, $options = []) {
+		$where = $criteria ? ' WHERE ' . $criteria : '';
 		$limit = (isset($options['limit'])) ? ' LIMIT ' . $options['limit'] : '';
 
 		if (isset($options['offset'])) {
@@ -20,7 +19,7 @@ class SelectBuilder {
 	public function aggregate($table, $function, $field, $where, $args, $group) {
 		if ($group == true) $groupBy = ' GROUP BY ' . $field;
 		else $groupBy = '';
-		return new Query('SELECT ' . $function . '(' . $field . ') as val, ' . $field . '   FROM ' . $table . ($where[0] != null ? ' WHERE ' : '') . implode(' AND ', $where) . ' ' . $groupBy, $args);
+		return new Query('SELECT ' . $function . '(' . $field . ') as val, ' . $field . '   FROM ' . $table . ($where != null ? ' WHERE ' . $where : '') . ' ' . $groupBy, $args);
 	}
 
 
@@ -82,7 +81,7 @@ class SelectBuilder {
 		if (\Maphper\Maphper::FIND_OR & $mode) $query = implode(' OR  ', $sql);
 		else $query = implode(' AND ', $sql);
 		if (!empty($query)) $query = '(' . $query . ')';
-		return ['args' => $args, 'sql' => [$query]];
+		return ['args' => $args, 'sql' => $query];
 	}
 
     private function getOperator($mode) {
