@@ -2,35 +2,25 @@
 namespace Maphper\DataSource;
 class MysqlAdapter implements DatabaseAdapter {
 	private $pdo;
-	private $queryCache = [];
+	private $stmtCache;
 
 	public function __construct(\PDO $pdo) {
 		$this->pdo = $pdo;
 		//Set to strict mode to detect 'out of range' errors, action at a distance but it needs to be set for all INSERT queries
 		$this->pdo->query('SET sql_mode = STRICT_ALL_TABLES');
+        $this->stmtCache = new StmtCache($pdo);
 	}
 
 	public function quote($str) {
 		return '`' . str_replace('.', '`.`', trim($str, '`')) . '`';
 	}
 
-	private function getCachedStmt($sql) {
-		$queryId = md5($sql);
-		if (isset($this->queryCache[$queryId])) $stmt = $this->queryCache[$queryId];
-		else {
-			$stmt = $this->pdo->prepare($sql, [\PDO::ATTR_CURSOR => \PDO::CURSOR_FWDONLY]);
-			if ($stmt) $this->queryCache[$queryId] = $stmt;
-		}
-		return $stmt;
-	}
-
 	public function query(\Maphper\Lib\Query $query) {
-		$stmt = $this->getCachedStmt($query->getSql());
+		$stmt = $this->stmtCache->getCachedStmt($query->getSql());
 		$args = $query->getArgs();
         $stmt->execute($args);
 
-		if (strpos(trim($query->getSql()), 'SELECT') === 0) return $stmt->fetchAll(\PDO::FETCH_OBJ);
-		else return $stmt;
+		return $stmt;
 	}
 
 	private function getType($val) {

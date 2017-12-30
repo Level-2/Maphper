@@ -3,29 +3,19 @@ namespace Maphper\DataSource;
 
 class SqliteAdapter implements DatabaseAdapter {
 	private $pdo;
-	private $queryCache = [];
-	
+	private $stmtCache;
+
 	public function __construct(\PDO $pdo) {
-		$this->pdo = $pdo;	
+		$this->pdo = $pdo;
+        $this->stmtCache = new StmtCache($pdo);
 	}
-	
+
 	public function quote($str) {
 		return '`' . str_replace('.', '`.`', trim($str, '`')) . '`';
 	}
 
-    private function getCachedStmt($sql) {
-		$queryId = md5($sql);
-		if (isset($this->queryCache[$queryId])) $stmt = $this->queryCache[$queryId];
-		else {
-			$stmt = $this->pdo->prepare($sql, [\PDO::ATTR_CURSOR => \PDO::CURSOR_FWDONLY]);
-			if ($stmt) $this->queryCache[$queryId] = $stmt;
-		}
-		return $stmt;
-	}
-
 	public function query(\Maphper\Lib\Query $query) {
-		$queryId = md5($query->getSql());
-        $stmt = $this->getCachedStmt($query->getSql());
+        $stmt = $this->stmtCache->getCachedStmt($query->getSql());
 		$args = $query->getArgs();
 
         //Handle SQLite when PDO_ERRMODE is set to SILENT
@@ -33,12 +23,11 @@ class SqliteAdapter implements DatabaseAdapter {
 
         $stmt->execute($args);
         if ($stmt->errorCode() !== '00000' && $stmt->errorInfo()[2] == 'database schema has changed') {
-			unset($this->queryCache[$queryId]);
+			$this->stmtCache->deleteQueryFromCache($query->getSql());
 			return $this->query($query);
         }
 
-        if (substr($query->getSql(), 0, 6) === 'SELECT') return $stmt->fetchAll(\PDO::FETCH_OBJ);
-        else return $stmt;
+        return $stmt;
 	}
 	
 	public function lastInsertId() {

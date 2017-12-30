@@ -52,7 +52,7 @@ class Database implements \Maphper\DataSource {
 	public function findById($id) {
 		if (!isset($this->cache[$id])) {
 			try {
-				$result = $this->adapter->query($this->selectBuilder->select($this->table, $this->getPrimaryKey()[0] . ' = :id', [':id' => $id], ['limit' => 1]));
+				$result = $this->selectQuery($this->selectBuilder->select($this->table, $this->getPrimaryKey()[0] . ' = :id', [':id' => $id], ['limit' => 1]));
 			}
 			catch (\Exception $e) {
 			}
@@ -71,7 +71,7 @@ class Database implements \Maphper\DataSource {
 		try {
 			$this->addIndex(array_keys($query['args']));
 			$this->addIndex(explode(',', $group));
-			$result = $this->adapter->query($this->selectBuilder->aggregate($this->table, $function, $field, $query['sql'], $query['args'], $group));
+			$result = $this->selectQuery($this->selectBuilder->aggregate($this->table, $function, $field, $query['sql'], $query['args'], $group));
 
 			return $this->determineAggregateResult($result, $group, $field);
 		}
@@ -102,7 +102,7 @@ class Database implements \Maphper\DataSource {
 			if (!isset($options['order'])) $options['order'] = $this->defaultSort;
 
 			try {
-				$this->resultCache[$cacheId] = $this->adapter->query($this->selectBuilder->select($this->table, $query['sql'], $query['args'], $options));
+				$this->resultCache[$cacheId] = $this->selectQuery($this->selectBuilder->select($this->table, $query['sql'], $query['args'], $options));
 				$this->addIndex(array_keys($query['args']));
 				$this->addIndex(explode(',', $options['order']));
 			}
@@ -199,5 +199,9 @@ class Database implements \Maphper\DataSource {
         if ($result->rowCount() === 0) $this->checkIfUpdateWorked($data);
 
         return $result;
+    }
+
+    private function selectQuery(\Maphper\Lib\Query $query) {
+        return $this->adapter->query($query)->fetchAll(\PDO::FETCH_OBJ);
     }
 }
