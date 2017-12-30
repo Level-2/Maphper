@@ -16,6 +16,7 @@ class Database implements \Maphper\DataSource {
 	private $adapter;
 	private $crudBuilder;
     private $selectBuilder;
+    private $whereBuilder;
 
 	public function __construct($db, $table, $primaryKey = 'id', array $options = []) {
 		$this->options = new DatabaseOptions($db, $options);
@@ -26,6 +27,7 @@ class Database implements \Maphper\DataSource {
 
 		$this->crudBuilder = new \Maphper\Lib\CrudBuilder();
 		$this->selectBuilder = new \Maphper\Lib\SelectBuilder();
+        $this->whereBuilder = new \Maphper\Lib\Sql\WhereBuilder();
 
 		$this->fields = implode(',', array_map([$this->adapter, 'quote'], (array) $this->options->read('fields')));
 
@@ -66,7 +68,7 @@ class Database implements \Maphper\DataSource {
 	public function findAggregate($function, $field, $group = null, array $criteria = [], array $options = []) {
 		//Cannot count/sum/max multiple fields, pick the first one. This should only come into play when trying to count() a mapper with multiple primary keys
 		if (is_array($field)) $field = $field[0];
-		$query = $this->selectBuilder->createSql($criteria, \Maphper\Maphper::FIND_EXACT | \Maphper\Maphper::FIND_AND);
+		$query = $this->whereBuilder->createSql($criteria);
 
 		try {
 			$this->addIndex(array_keys($query['args']));
@@ -97,7 +99,7 @@ class Database implements \Maphper\DataSource {
 	public function findByField(array $fields, $options = []) {
 		$cacheId = md5(serialize(func_get_args()));
 		if (!isset($this->resultCache[$cacheId])) {
-			$query = $this->selectBuilder->createSql($fields, \Maphper\Maphper::FIND_EXACT | \Maphper\Maphper::FIND_AND);
+			$query = $this->whereBuilder->createSql($fields);
 
 			if (!isset($options['order'])) $options['order'] = $this->defaultSort;
 
@@ -115,7 +117,7 @@ class Database implements \Maphper\DataSource {
 	}
 
 	public function deleteByField(array $fields, array $options = []) {
-		$query = $this->selectBuilder->createSql($fields, \Maphper\Maphper::FIND_EXACT | \Maphper\Maphper::FIND_AND);
+		$query = $this->whereBuilder->createSql($fields);
 		$this->adapter->query($this->crudBuilder->delete($this->table, $query['sql'], $query['args'], $options['limit'], null, $options['order']));
 		$this->addIndex(array_keys($query['args']));
 
@@ -166,8 +168,8 @@ class Database implements \Maphper\DataSource {
     }
 
     private function checkIfUpdateWorked($data) {
-        $updateWhere = $this->crudBuilder->update($this->table, $this->primaryKey, $data);
-        $matched = $this->findByField($updateWhere->getArgs());
+        $updateWhere = $this->whereBuilder->createSql($data);
+        $matched = $this->findByField($updateWhere['args']);
 
         if (count($matched) == 0) throw new \InvalidArgumentException('Record inserted into table ' . $this->table . ' fails table constraints');
     }
