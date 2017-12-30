@@ -63,8 +63,8 @@ class Mock implements \Maphper\DataSource {
         unset($this->data[$id]);
     }
 
-  	public function deleteByField(array $fields) {
-        foreach ($this->findByField($fields) as $val) unset($this->data[$val->{$this->id[0]}]);
+  	public function deleteByField(array $fields, array $options) {
+        foreach ($this->findByField($fields, $options) as $val) unset($this->data[$val->{$this->id[0]}]);
     }
 
     public function save($data) {

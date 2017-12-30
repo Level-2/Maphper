@@ -116,14 +116,10 @@ class Database implements \Maphper\DataSource {
 		return $this->resultCache[$cacheId];
 	}
 
-	public function deleteByField(array $fields, array $options = [], $mode = null) {
-		if ($mode == null) $mode = \Maphper\Maphper::FIND_EXACT | \Maphper\Maphper::FIND_AND;
-		if (isset($options['limit']) != null) $limit = ' LIMIT ' . $options['limit'];
-		else $limit = '';
-
-		$query = $this->selectBuilder->createSql($fields, $mode);
+	public function deleteByField(array $fields, array $options = []) {
+		$query = $this->selectBuilder->createSql($fields, \Maphper\Maphper::FIND_EXACT | \Maphper\Maphper::FIND_AND);
         $query['sql'] = array_filter($query['sql']);
-		$this->adapter->query($this->crudBuilder->delete($this->table, $query['sql'], $query['args'], $limit));
+		$this->adapter->query($this->crudBuilder->delete($this->table, $query['sql'], $query['args'], $options['limit'], null, $options['order']));
 		$this->addIndex(array_keys($query['args']));
 
 		//Clear the cache
