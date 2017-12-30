@@ -19,4 +19,8 @@ class DatabaseModify {
     public function optimizeColumns() {
         if (Database::EDIT_OPTIMISE & $this->alterDb && rand(0,500) == 1) $this->adapter->optimiseColumns($this->table);
     }
+
+    public function getTryInsertAgain($tryagain) {
+        return $tryagain && Database::EDIT_STRUCTURE & $this->alterDb;
+    }
 }

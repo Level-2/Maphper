@@ -11,11 +11,12 @@ class DatabaseSelect {
     private $defaultSort;
     private $table;
 
-    public function __construct(DatabaseAdapter $adapter, DatabaseModify $databaseModify, $table) {
+    public function __construct(DatabaseAdapter $adapter, DatabaseModify $databaseModify, $table, $defaultSort) {
         $this->adapter = $adapter;
         $this->databaseModify = $databaseModify;
         $this->selectBuilder = new \Maphper\Lib\SelectBuilder();
         $this->whereBuilder = new \Maphper\Lib\Sql\WhereBuilder();
+        $this->defaultSort = $defaultSort;
         $this->table = $table;
     }
 
@@ -34,12 +35,12 @@ class DatabaseSelect {
 		return $this->idCache[$id];
 	}
 
-    public function findByField(array $fields, $options, $defaultSort) {
+    public function findByField(array $fields, $options = []) {
 		$cacheId = md5(serialize(func_get_args()));
 		if (!isset($this->resultCache[$cacheId])) {
 			$query = $this->whereBuilder->createSql($fields);
 
-			if (!isset($options['order'])) $options['order'] = $defaultSort;
+			if (!isset($options['order'])) $options['order'] = $this->defaultSort;
 
 			try {
 				$this->resultCache[$cacheId] = $this->selectQuery($this->selectBuilder->select($this->table, $query['sql'], $query['args'], $options));
