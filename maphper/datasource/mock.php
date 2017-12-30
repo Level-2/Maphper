@@ -19,10 +19,8 @@ class Mock implements \Maphper\DataSource {
     }
 
     public function findByField(array $fields, $options = []) {
-        $array = iterator_to_array($this->data->getIterator());
-        $filteredArray = array_filter($array, $this->getSearchFieldFunction($fields, \Maphper\Maphper::FIND_EXACT | \Maphper\Maphper::FIND_AND));
-        // Need to reset indexes
-        $filteredArray = array_values($filteredArray);
+        $arrayFilter = new \Maphper\Lib\ArrayFilter(iterator_to_array($this->data->getIterator()));
+        $filteredArray = $arrayFilter->filter($fields);
         if (isset($options['order'])) {
             list($columns, $order) = explode(' ', $options['order']);
             usort($filteredArray, $this->getOrderFunction($order, $columns));
@@ -30,29 +28,6 @@ class Mock implements \Maphper\DataSource {
         if (isset($options['offset'])) $filteredArray = array_slice($filteredArray, $options['offset']);
         if (isset($options['limit'])) $filteredArray = array_slice($filteredArray, 0, $options['limit']);
         return $filteredArray;
-    }
-
-    private function getSearchFieldFunction($fields, $mode) {
-        return function ($data) use ($fields, $mode) {
-            foreach ($fields as $key => $val) {
-                $currentFieldResult = $this->getIfFieldMatches($key, $val, $data, $mode);
-
-                if (Maphper::FIND_OR & $mode && $currentFieldResult === true) return true;
-                else if (!(Maphper::FIND_OR & $mode) && $currentFieldResult === false) return false;
-            }
-            return !(Maphper::FIND_OR & $mode);
-        };
-    }
-
-    private function getIfFieldMatches($key, $val, $data, $mode) {
-        if (is_numeric($key) && is_array($val)) {
-            return $this->getSearchFieldFunction($val, $key)($data);
-        }
-        else if (!isset($data->$key)) return false;
-        else if (!(Maphper::FIND_BETWEEN & $mode) && !is_numeric($key) && is_array($val))
-            return in_array($data->$key, $val);
-        else
-            return $this->processFilter($mode, $val, $data->$key);
     }
 
   	public function findAggregate($function, $field, $group = null, array $criteria = [], array $options = []) {
@@ -98,16 +73,5 @@ class Mock implements \Maphper\DataSource {
           if ($order === 'desc') return -$sortVal;
           else return $sortVal;
         };
-    }
-
-    private function processFilter($mode, $expected, $actual) {
-        if (Maphper::FIND_NOT & $mode) return $expected != $actual;
-        else if (Maphper::FIND_GREATER & $mode && Maphper::FIND_EXACT & $mode) return $expected <= $actual;
-        else if (Maphper::FIND_LESS & $mode && Maphper::FIND_EXACT & $mode) return $expected >= $actual;
-        else if (Maphper::FIND_GREATER & $mode) return $expected < $actual;
-        else if (Maphper::FIND_LESS & $mode) return $expected > $actual;
-        else if (Maphper::FIND_BETWEEN & $mode) return $expected[0] <= $actual && $actual <= $expected[1];
-        else if (Maphper::FIND_NOCASE & $mode) return strtolower($expected) == strtolower($actual);
-        return $expected == $actual;
     }
 }
