@@ -11,20 +11,21 @@ class VisibilityOverride {
 			$this->writeClosure = function ($field, $value) use ($object) { $object->$field = $value; };
 		}
 		else {
-			$this->readClosure = function() {
-				$data = new \stdClass;
-				foreach ($this as $k => $v)	{
-					if (is_scalar($v) || is_null($v) || (is_object($v) && $v instanceof \DateTime))	$data->$k = $v;
-				}
-				return $data;
+            $visOverride = $this;
+			$this->readClosure = function() use ($visOverride) {
+                return (object) array_filter(get_object_vars($this), [$visOverride, 'isReturnableDataType']);
 			};
 			$this->readClosure = $this->readClosure->bindTo($object, $object);
 
 			$this->writeClosure = function ($field, $value) { $this->$field = $value; };
 			$this->writeClosure = $this->writeClosure->bindTo($object, $object);
 		}
-			
+
 	}
+
+    public function isReturnableDataType($v) {
+        return is_scalar($v) || is_null($v) || (is_object($v) && $v instanceof \DateTime);
+    }
 
 	public function getProperties() {
 		return ($this->readClosure)();
