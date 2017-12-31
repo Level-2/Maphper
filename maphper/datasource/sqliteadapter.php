@@ -4,14 +4,19 @@ namespace Maphper\DataSource;
 class SqliteAdapter implements DatabaseAdapter {
 	private $pdo;
 	private $stmtCache;
+    private $generalEditor;
 
 	public function __construct(\PDO $pdo) {
 		$this->pdo = $pdo;
         $this->stmtCache = new StmtCache($pdo);
+        $this->generalEditor = new GeneralEditDatabase($this->pdo, [
+            'int' => 'INTEGER',
+            'pk_default' => 'INTEGER NOT NULL',
+        ]);
 	}
 
 	public function quote($str) {
-		return '`' . str_replace('.', '`.`', trim($str, '`')) . '`';
+		return $this->generalEditor->quote($str);
 	}
 
 	public function query(\Maphper\Lib\Query $query) {
@@ -29,18 +34,9 @@ class SqliteAdapter implements DatabaseAdapter {
 
         return $stmt;
 	}
-	
+
 	public function lastInsertId() {
 		return $this->pdo->lastInsertId();
-	}
-	
-	private function getType($val) {
-		if ($val instanceof \DateTime) return 'DATETIME';
-		else if (is_int($val)) return  'INTEGER';
-		else if (is_double($val)) return 'DECIMAL(9,' . strlen($val) - strrpos($val, '.') - 1 . ')';
-		else if (is_string($val) && strlen($val) < 256) return 'VARCHAR(255)';
-		else if (is_string($val) && strlen($val) > 256) return 'LONGBLOG';
-		else return 'VARCHAR(255)';		
 	}
 
 	private function tableExists($name) {
@@ -66,7 +62,7 @@ class SqliteAdapter implements DatabaseAdapter {
         // Create temp table to create a new structure
 		$affix = '_'.substr(md5($table), 0, 6);
         $tempTable = $table . $affix;
-		$this->createTable($tempTable, $primaryKey, $data);
+		$this->generalEditor->createTable($tempTable, $primaryKey, $data);
         $this->alterColumns($tempTable, $primaryKey, $data);
 		$this->copyTableData($table, $tempTable);
 
@@ -89,53 +85,35 @@ class SqliteAdapter implements DatabaseAdapter {
 		}
     }
 
-	private function createTable($table, array $primaryKey, $data) {
-		$parts = [];
-		foreach ($primaryKey as $key) {
-			$pk = $data->$key;
-			if ($pk == null) $parts[] = $key . ' INTEGER'; 
-			else $parts[] = $key . ' ' . $this->getType($pk) . ' NOT NULL';					
-		}
-		
-		$pkField = implode(', ', $parts) . ', PRIMARY KEY(' . implode(', ', $primaryKey) . ')';
-
-		$this->pdo->query('CREATE TABLE ' . $table . ' (' . $pkField . ')');
-	}
-
     private function alterColumns($table, array $primaryKey, $data) {
         foreach ($data as $key => $value) {
-			if ($this->isNotSavableType($value, $key, $primaryKey)) continue;
+			if ($this->generalEditor->isNotSavableType($value, $key, $primaryKey)) continue;
 
-			$type = $this->getType($value);
-		
+			$type = $this->generalEditor->getType($value);
+
 			$this->pdo->query('ALTER TABLE ' . $table . ' ADD ' . $this->quote($key) . ' ' . $type);
 		}
     }
 
-    private function isNotSavableType($value, $key, $primaryKey) {
-        return is_array($value) || (is_object($value) && !($value instanceof \DateTime)) ||
-                in_array($key, $primaryKey);
-    }
-
-	public function addIndex($table, array $fields) {
+    public function addIndex($table, array $fields) {
 		if (empty($fields)) return false;
-		
+
 		//SQLite doesn't support ASC/DESC indexes, remove the keywords
 		foreach ($fields as &$field) $field = str_ireplace([' desc', ' asc'], '', $field);
 		sort($fields);
 		$fields = array_map('strtolower', $fields);
 		$fields = array_map('trim', $fields);
 		$keyName = implode('_', $fields);
-	
-		
+
+
 		try {
 			$this->pdo->query('CREATE INDEX IF NOT EXISTS  ' . $keyName . ' ON ' . $table . ' (' . implode(', ', $fields) . ')');
 		}
 		catch (\Exception $e) {
-			
+
 		}
 	}
-	
+
 	public function optimiseColumns($table) {
 		//TODO
 	}

@@ -3,16 +3,18 @@ namespace Maphper\DataSource;
 class MysqlAdapter implements DatabaseAdapter {
 	private $pdo;
 	private $stmtCache;
+    private $generalEditor;
 
 	public function __construct(\PDO $pdo) {
 		$this->pdo = $pdo;
 		//Set to strict mode to detect 'out of range' errors, action at a distance but it needs to be set for all INSERT queries
 		$this->pdo->query('SET sql_mode = STRICT_ALL_TABLES');
         $this->stmtCache = new StmtCache($pdo);
+        $this->generalEditor = new GeneralEditDatabase($this->pdo, ['short_string_max_len' => 191]);
 	}
 
 	public function quote($str) {
-		return '`' . str_replace('.', '`.`', trim($str, '`')) . '`';
+		return $this->generalEditor->quote($str);
 	}
 
 	public function query(\Maphper\Lib\Query $query) {
@@ -23,32 +25,11 @@ class MysqlAdapter implements DatabaseAdapter {
 		return $stmt;
 	}
 
-	private function getType($val) {
-		if ($val instanceof \DateTime) return 'DATETIME';
-		else if (is_int($val)) return  'INT(11)';
-		else if (is_double($val)) return 'DECIMAL(9,' . strlen($val) - strrpos($val, '.') - 1 . ')';
-		else if (is_string($val)) return strlen($val) < 192 ? 'VARCHAR(191)' : 'LONGBLOB';
-		return 'VARCHAR(191)';
-	}
-
-	//Alter the database so that it can store $data
-	private function createTable($table, array $primaryKey, $data) {
-		$parts = [];
-		foreach ($primaryKey as $key) {
-			$pk = $data->$key;
-			if ($pk == null) $parts[] = $key . ' INT(11) NOT NULL AUTO_INCREMENT';
-			else $parts[] = $key . ' ' . $this->getType($pk) . ' NOT NULL';
-		}
-
-		$pkField = implode(', ', $parts) . ', PRIMARY KEY(' . implode(', ', $primaryKey) . ')';
-		$this->pdo->query('CREATE TABLE IF NOT EXISTS ' . $table . ' (' . $pkField . ')');
-	}
-
     private function alterColumns($table, array $primaryKey, $data) {
         foreach ($data as $key => $value) {
-			if ($this->isNotSavableType($value, $key, $primaryKey)) continue;
+			if ($this->generalEditor->isNotSavableType($value, $key, $primaryKey)) continue;
 
-			$type = $this->getType($value);
+			$type = $this->generalEditor->getType($value);
 
 			try {
 				if (!$this->pdo->query('ALTER TABLE ' . $table . ' ADD ' . $this->quote($key) . ' ' . $type)) throw new \Exception('Could not alter table');
@@ -59,13 +40,8 @@ class MysqlAdapter implements DatabaseAdapter {
 		}
     }
 
-    private function isNotSavableType($value, $key, $primaryKey) {
-        return is_array($value) || (is_object($value) && !($value instanceof \DateTime)) ||
-                in_array($key, $primaryKey);
-    }
-
 	public function alterDatabase($table, array $primaryKey, $data) {
-		$this->createTable($table, $primaryKey, $data);
+		$this->generalEditor->createTable($table, $primaryKey, $data);
         $this->alterColumns($table, $primaryKey, $data);
 	}
 
