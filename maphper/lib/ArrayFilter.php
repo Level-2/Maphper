@@ -22,21 +22,29 @@ class ArrayFilter {
                 $currentFieldResult = $this->getIfFieldMatches($key, $val, $data, $mode);
 
                 if (Maphper::FIND_OR & $mode && $currentFieldResult === true) return true;
-                else if (!(Maphper::FIND_OR & $mode) && $currentFieldResult === false) return false;
+                else if (Maphper::FIND_OR ^ $mode && $currentFieldResult === false) return false;
             }
-            return !(Maphper::FIND_OR & $mode);
+            return (bool)(Maphper::FIND_OR ^ $mode);
         };
     }
 
     private function getIfFieldMatches($key, $val, $data, $mode) {
-        if (is_numeric($key) && is_array($val)) {
+        if ($this->shouldRunDeepSearch($key, $val)) {
             return $this->getSearchFieldFunction($val, $key)($data);
         }
         else if (!isset($data->$key)) return false;
-        else if (!(Maphper::FIND_BETWEEN & $mode) && !is_numeric($key) && is_array($val))
+        else if ($this->isInArraySearch($mode, $key, $val))
             return in_array($data->$key, $val);
         else
             return $this->processFilter($mode, $val, $data->$key);
+    }
+
+    private function shouldRunDeepSearch($key, $val) {
+        return is_numeric($key) && is_array($val);
+    }
+
+    private function isInArraySearch($mode, $key, $val) {
+        return !(Maphper::FIND_BETWEEN & $mode) && !is_numeric($key) && is_array($val);
     }
 
     private function processFilter($mode, $expected, $actual) {
