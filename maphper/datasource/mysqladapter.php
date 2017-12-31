@@ -28,16 +28,19 @@ class MysqlAdapter implements DatabaseAdapter {
     private function alterColumns($table, array $primaryKey, $data) {
         foreach ($data as $key => $value) {
 			if ($this->generalEditor->isNotSavableType($value, $key, $primaryKey)) continue;
-
+            
 			$type = $this->generalEditor->getType($value);
-
-			try {
-				if (!$this->pdo->query('ALTER TABLE ' . $table . ' ADD ' . $this->quote($key) . ' ' . $type)) throw new \Exception('Could not alter table');
-			}
-			catch (\Exception $e) {
-				$this->pdo->query('ALTER TABLE ' . $table . ' MODIFY ' . $this->quote($key) . ' ' . $type);
-			}
+			$this->tryAlteringColumn($table, $key, $type);
 		}
+    }
+
+    private function tryAlteringColumn($table, $key, $type) {
+        try {
+            if (!$this->pdo->query('ALTER TABLE ' . $table . ' ADD ' . $this->quote($key) . ' ' . $type)) throw new \Exception('Could not alter table');
+        }
+        catch (\Exception $e) {
+            $this->pdo->query('ALTER TABLE ' . $table . ' MODIFY ' . $this->quote($key) . ' ' . $type);
+        }
     }
 
 	public function alterDatabase($table, array $primaryKey, $data) {

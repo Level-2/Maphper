@@ -86,29 +86,27 @@ class ManyMany implements \IteratorAggregate, \ArrayAccess, \Countable, \Maphper
 
 	public function offsetSet($name, $value) {
 		list($relatedField, $valueField, $mapper) = $this->getOtherFieldNameInfo();
-		if ($this->autoTraverse) {
-			$record = new \stdClass;
-			$record->{$this->parentField} =  $value->{$this->localField};
+		if ($this->autoTraverse) $this->offsetSetAutotraverse($value, $relatedField, $valueField);
+		else if ($this->doUpdateInterMapper($value, $relatedField, $valueField)) {
+            $record = $value;
+			$record->{$this->parentField} = $value->{$this->intermediateName}->{$this->localField};
 			$record->$valueField = $this->object->{$relatedField};
 			$this->intermediateMapper[] = $record;
-
-		}
-		else {
-			$record = $value;
-			if (isset($record->{$this->parentField}) && isset($value->{$this->intermediateName}) &&
-					$record->{$this->parentField} == $value->{$this->intermediateName}->{$this->localField} &&
-					$record->$valueField == $this->object->{$relatedField}) {
-				return;
-			}
-			else {
-				$record->{$this->parentField} = $value->{$this->intermediateName}->{$this->localField};
-				$record->$valueField = $this->object->{$relatedField};
-				$this->intermediateMapper[] = $record;
-				return true;
-			}
-
 		}
 	}
+
+    private function doUpdateInterMapper($record, $relatedField, $valueField) {
+        return !(isset($record->{$this->parentField}) && isset($record->{$this->intermediateName}) &&
+                $record->{$this->parentField} == $record->{$this->intermediateName}->{$this->localField} &&
+                $record->$valueField == $this->object->{$relatedField});
+    }
+
+    private function offsetSetAutotraverse($value, $relatedField, $valueField) {
+        $record = new \stdClass;
+        $record->{$this->parentField} =  $value->{$this->localField};
+        $record->$valueField = $this->object->{$relatedField};
+        $this->intermediateMapper[] = $record;
+    }
 
 	public function offsetUnset($id) {
 		//$this->relation->mapper->filter([$relatedField => $this->object->$valueField, $this->relation->parentField => $id])->delete();

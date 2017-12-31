@@ -5,15 +5,14 @@ class One implements \Maphper\Relation {
 	private $parentField;
 	private $localField;
 	private $parentObject;
-	private $criteria = [];
 	private $data;
 	private $siblings = [];
 
 	public function __construct(\Maphper\Maphper $mapper, $parentField, $localField, array $criteria = []) {
+        if ($criteria) $mapper = $mapper->filter($this->criteira);
 		$this->mapper = $mapper;
 		$this->parentField = $parentField;
 		$this->localField = $localField;
-		$this->criteria = $criteria;
 	}
 
 	public function getData($parentObject, &$siblings = null) {
@@ -33,26 +32,29 @@ class One implements \Maphper\Relation {
 			if ($this->parentObject == null) throw new \Exception('Error, no object set');
 
 			$this->eagerLoad();
-			
+
 		}
 		return $this->data;
 	}
 
 	private function eagerLoad() {
 		$recordsToLoad = [];
-		//Get a list of records by FK to eager load	
+		//Get a list of records by FK to eager load
 		foreach ($this->siblings as $sibling) {
 			$recordsToLoad[] = $sibling->parentObject->{$sibling->parentField};
 		}
 
 		$recordsToLoad = array_unique($recordsToLoad);
 		//Fetch the results so they're in the cache for the corresponding maphper object
-		if ($this->criteria) $results = $this->mapper->filter($this->criteira)->filter([$this->localField => $recordsToLoad]);
-		else $results = $this->mapper->filter([$this->localField => $recordsToLoad]);
-			
-		$cache = [];
+		$results = $this->mapper->filter([$this->localField => $recordsToLoad]);
+
+        $this->loadDataIntoSiblings($results);
+	}
+
+    private function loadDataIntoSiblings($results) {
+        $cache = [];
 		foreach ($results as $result) {
-			$cache[$result->{$this->localField}] = $result; 
+			$cache[$result->{$this->localField}] = $result;
 		}
 
 		foreach ($this->siblings as $sibling) {
@@ -64,8 +66,7 @@ class One implements \Maphper\Relation {
 			else $sibling->data = $sibling->mapper->filter([$sibling->localField => $sibling->parentObject->{$this->parentField}])->item(0);
 		}
 		*/
-		
-	}
+    }
 
 	public function __call($func, array $args = []) {
 		if ($this->lazyLoad() == null) return '';
