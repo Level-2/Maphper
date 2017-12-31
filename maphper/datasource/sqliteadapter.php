@@ -63,29 +63,33 @@ class SqliteAdapter implements DatabaseAdapter {
 		// SQLSTATE[HY000]: General error: 17 database schema has changed
 		$this->stmtCache->clearCache();
 
+        // Create temp table to create a new structure
 		$affix = '_'.substr(md5($table), 0, 6);
-		$this->createTable($table . $affix, $primaryKey, $data);
-		$fields = [];
-		foreach ($data as $key => $value) { $fields[] = $key; }
-		try {
-			if ($this->tableExists($table)) {
-				$columns = implode(', ', $this->getColumns($table));			
+        $tempTable = $table . $affix;
+		$this->createTable($tempTable, $primaryKey, $data);
+        $this->alterColumns($tempTable, $primaryKey, $data);
+		$this->copyTableData($table, $tempTable);
 
-				$this->pdo->query('INSERT INTO ' . $this->quote($table . $affix) . '(' . $columns . ') SELECT ' . $columns . ' FROM ' . $this->quote($table));
-				$this->pdo->query('DROP TABLE IF EXISTS ' . $table );
+		$this->pdo->query('DROP TABLE IF EXISTS ' . $table );
+		$this->pdo->query('ALTER TABLE ' . $tempTable . ' RENAME TO '. $table );
+
+	}
+
+    private function copyTableData($tableFrom, $tableTo) {
+        try {
+			if ($this->tableExists($tableFrom)) {
+				$columns = implode(', ', $this->getColumns($tableFrom));
+
+				$this->pdo->query('INSERT INTO ' . $this->quote($tableTo) . '(' . $columns . ') SELECT ' . $columns . ' FROM ' . $this->quote($tableFrom));
 			}
 		}
 		catch (\PDOException $e) {
 			// No data to copy
 			echo $e->getMessage();
 		}
+    }
 
-		$this->pdo->query('DROP TABLE IF EXISTS ' . $table );
-		$this->pdo->query('ALTER TABLE ' . $table . $affix. ' RENAME TO '. $table );
-
-	}
-
-	public function createTable($table, array $primaryKey, $data) {
+	private function createTable($table, array $primaryKey, $data) {
 		$parts = [];
 		foreach ($primaryKey as $key) {
 			$pk = $data->$key;
@@ -94,20 +98,24 @@ class SqliteAdapter implements DatabaseAdapter {
 		}
 		
 		$pkField = implode(', ', $parts) . ', PRIMARY KEY(' . implode(', ', $primaryKey) . ')';
-				
-		$this->pdo->query('DROP TABLE IF EXISTS ' . $table );
+
 		$this->pdo->query('CREATE TABLE ' . $table . ' (' . $pkField . ')');
-					
-		foreach ($data as $key => $value) {
-			if (is_array($value) || (is_object($value) && !($value instanceof \DateTime))) continue;
-			if (in_array($key, $primaryKey)) continue;
+	}
+
+    private function alterColumns($table, array $primaryKey, $data) {
+        foreach ($data as $key => $value) {
+			if ($this->isNotSavableType($value, $key, $primaryKey)) continue;
 
 			$type = $this->getType($value);
 		
 			$this->pdo->query('ALTER TABLE ' . $table . ' ADD ' . $this->quote($key) . ' ' . $type);
 		}
-	}
-	
+    }
+
+    private function isNotSavableType($value, $key, $primaryKey) {
+        return is_array($value) || (is_object($value) && !($value instanceof \DateTime)) ||
+                in_array($key, $primaryKey);
+    }
 
 	public function addIndex($table, array $fields) {
 		if (empty($fields)) return false;

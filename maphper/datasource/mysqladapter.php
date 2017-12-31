@@ -44,12 +44,9 @@ class MysqlAdapter implements DatabaseAdapter {
 		$this->pdo->query('CREATE TABLE IF NOT EXISTS ' . $table . ' (' . $pkField . ')');
 	}
 
-	public function alterDatabase($table, array $primaryKey, $data) {
-		$this->createTable($table, $primaryKey, $data);
-
-		foreach ($data as $key => $value) {
-			if (is_array($value) || (is_object($value) && !($value instanceof \DateTime))) continue;
-			if (in_array($key, $primaryKey)) continue;
+    private function alterColumns($table, array $primaryKey, $data) {
+        foreach ($data as $key => $value) {
+			if ($this->isNotSavableType($value, $key, $primaryKey)) continue;
 
 			$type = $this->getType($value);
 
@@ -60,6 +57,16 @@ class MysqlAdapter implements DatabaseAdapter {
 				$this->pdo->query('ALTER TABLE ' . $table . ' MODIFY ' . $this->quote($key) . ' ' . $type);
 			}
 		}
+    }
+
+    private function isNotSavableType($value, $key, $primaryKey) {
+        return is_array($value) || (is_object($value) && !($value instanceof \DateTime)) ||
+                in_array($key, $primaryKey);
+    }
+
+	public function alterDatabase($table, array $primaryKey, $data) {
+		$this->createTable($table, $primaryKey, $data);
+        $this->alterColumns($table, $primaryKey, $data);
 	}
 
 	public function lastInsertId() {
