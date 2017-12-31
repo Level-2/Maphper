@@ -4,8 +4,8 @@ use Maphper\Maphper;
 
 class GeneralOperator implements WhereConditional {
     public function matches($key, $value, $mode) {
-        return Maphper::FIND_BIT & $mode || Maphper::FIND_GREATER & $mode ||
-                Maphper::FIND_LESS & $mode || Maphper::FIND_NOT & $mode || Maphper::FIND_EXACT & $mode;
+        return (Maphper::FIND_BIT ^ Maphper::FIND_GREATER ^ Maphper::FIND_LESS ^ Maphper::FIND_NOT & $mode)
+                || Maphper::FIND_EXACT & $mode;
     }
 
     public function getSql($key, $value, $mode) {
@@ -16,12 +16,17 @@ class GeneralOperator implements WhereConditional {
     }
 
     private function getOperator($mode) {
+        if (\Maphper\Maphper::FIND_BIT & $mode) return '&';
+        else if (\Maphper\Maphper::FIND_NOT & $mode) return '!=';
+
+        return $this->getEqualsOperators($mode);
+    }
+
+    private function getEqualsOperators($mode) {
         $operator = "";
 
-        if (\Maphper\Maphper::FIND_BIT & $mode) $operator = '&';
-        else if (\Maphper\Maphper::FIND_GREATER & $mode) $operator = '>';
+        if (\Maphper\Maphper::FIND_GREATER & $mode) $operator = '>';
         else if (\Maphper\Maphper::FIND_LESS & $mode) $operator = '<';
-        else if (\Maphper\Maphper::FIND_NOT & $mode) $operator = '!=';
 
         if (\Maphper\Maphper::FIND_EXACT & $mode) $operator .= '=';
 

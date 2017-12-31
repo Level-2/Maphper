@@ -333,6 +333,150 @@ class MySqlDatabaseTest extends PHPUnit_Framework_TestCase {
 		$this->assertEquals(count($blogs), 0);
 	}
 
+    public function testFindLessThan() {
+        $this->populateBlogs();
+		$blogs = new \Maphper\Maphper($this->getDataSource('blog'));
+
+        $blogs = $blogs->filter([
+            \Maphper\Maphper::FIND_LESS => [
+                'id' => 11
+            ]
+        ]);
+
+        $this->assertEquals(10, count($blogs));
+    }
+
+    public function testFindGreaterThan() {
+        $this->populateBlogs();
+		$blogs = new \Maphper\Maphper($this->getDataSource('blog'));
+
+        $blogs = $blogs->filter([
+            \Maphper\Maphper::FIND_GREATER => [
+                'id' => 10
+            ]
+        ]);
+
+        $this->assertEquals(10, count($blogs));
+    }
+
+    public function testFindGreaterThanAndEqual() {
+        $this->populateBlogs();
+		$blogs = new \Maphper\Maphper($this->getDataSource('blog'));
+
+        $blogs = $blogs->filter([
+            \Maphper\Maphper::FIND_GREATER | \Maphper\Maphper::FIND_EXACT => [
+                'id' => 11
+            ]
+        ]);
+
+        $this->assertEquals(10, count($blogs));
+    }
+
+    public function testFindBetween() {
+        $this->populateBlogs();
+		$blogs = new \Maphper\Maphper($this->getDataSource('blog'));
+
+        $blogs = $blogs->filter([
+            \Maphper\Maphper::FIND_BETWEEN => [
+                'id' => [11,15]
+            ]
+        ]);
+
+        $this->assertEquals(5, count($blogs));
+    }
+
+    public function testFindNot() {
+        $this->populateBlogs();
+		$blogs = new \Maphper\Maphper($this->getDataSource('blog'));
+
+        $blogs = $blogs->filter([
+            \Maphper\Maphper::FIND_NOT => [
+                'id' => 11
+            ]
+        ]);
+
+        $this->assertEquals(19, count($blogs));
+    }
+
+    public function testFindNull() {
+        $this->populateBlogs();
+		$blogs = new \Maphper\Maphper($this->getDataSource('blog'));
+        $blogs[] = (object) ['title' => null, 'rating' => 4];
+
+        $blogs = $blogs->filter([
+            'title' => null
+        ]);
+
+        $this->assertEquals(1, count($blogs));
+    }
+
+    public function testFindNotNull() {
+        $this->populateBlogs();
+		$blogs = new \Maphper\Maphper($this->getDataSource('blog'));
+        $blogs[] = (object) ['title' => null, 'rating' => 4];
+
+        $this->assertEquals(21, count($blogs));
+
+        $blogs = $blogs->filter([
+            \Maphper\Maphper::FIND_NOT => [
+                'title' => null
+            ]
+        ]);
+
+
+        $this->assertEquals(20, count($blogs));
+    }
+
+    public function testFindIn() {
+        $this->populateBlogs();
+		$blogs = new \Maphper\Maphper($this->getDataSource('blog'));
+
+        $blogs = $blogs->filter([
+            'id' => [1, 5, 9]
+        ]);
+
+        $this->assertEquals(3, count($blogs));
+    }
+
+    public function testFindStarts() {
+        $this->populateBlogs();
+		$blogs = new \Maphper\Maphper($this->getDataSource('blog'));
+
+        $blogs = $blogs->filter([
+            \Maphper\Maphper::FIND_STARTS => [
+                'title' => 'blog number 1'
+            ]
+        ]);
+
+        $this->assertEquals(11, count($blogs));
+    }
+
+    public function testFindEnds() {
+        $this->populateBlogs();
+		$blogs = new \Maphper\Maphper($this->getDataSource('blog'));
+
+        $blogs = $blogs->filter([
+            \Maphper\Maphper::FIND_ENDS => [
+                'title' => '2'
+            ]
+        ]);
+
+        $this->assertEquals(2, count($blogs));
+    }
+
+    public function testFindLike() {
+        $this->populateBlogs();
+		$blogs = new \Maphper\Maphper($this->getDataSource('blog'));
+
+        $blogs = $blogs->filter([
+            \Maphper\Maphper::FIND_LIKE => [
+                'title' => '1'
+            ]
+        ]);
+
+        $this->assertEquals(11, count($blogs));
+    }
+
 	public function testCreateNew() {
 		$blogs = new \Maphper\Maphper($this->getDataSource('blog'));
 		$blog = $blogs[null];
@@ -1121,7 +1265,7 @@ class MySqlDatabaseTest extends PHPUnit_Framework_TestCase {
 
 		$mapper[] = $record;
 
-		
+
 	}
 
 	public function testInsertNoEditModeNoDefaultValue() {
@@ -1143,7 +1287,7 @@ class MySqlDatabaseTest extends PHPUnit_Framework_TestCase {
 
 		$this->assertEquals(0, count($mapper));
 
-		
+
 	}
 
 /*

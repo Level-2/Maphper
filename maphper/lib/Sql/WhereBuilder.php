@@ -20,8 +20,7 @@ class WhereBuilder {
         $this->conditionals[] = $conditional;
     }
 
-    //Needs to be broken up into better methods
-	public function createSql($fields, $mode = \Maphper\Maphper::FIND_EXACT | \Maphper\Maphper::FIND_AND){
+	public function createSql($fields, $mode = \Maphper\Maphper::FIND_EXACT | \Maphper\Maphper::FIND_AND) {
 		$args = [];
 		$sql = [];
 
@@ -35,15 +34,19 @@ class WhereBuilder {
             else {
                 $result = $this->getConditional($key, $value, $mode);
             }
-            $sql = array_merge($sql, $result['sql']);
+            $sql = array_merge($sql, (array)$result['sql']);
             $args = array_merge($args, $result['args']);
         }
 
+		return ['args' => $args, 'sql' => $this->sqlArrayToString($sql, $mode)];
+	}
+
+    private function sqlArrayToString($sql, $mode) {
         if (\Maphper\Maphper::FIND_OR & $mode) $query = implode(' OR  ', $sql);
 		else $query = implode(' AND ', $sql);
 		if (!empty($query)) $query = '(' . $query . ')';
-		return ['args' => $args, 'sql' => $query];
-	}
+        return $query;
+    }
 
     private function getConditional($key, $value, $mode) {
         foreach ($this->conditionals as $conditional) {
