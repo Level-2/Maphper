@@ -477,6 +477,24 @@ class MySqlDatabaseTest extends PHPUnit_Framework_TestCase {
         $this->assertEquals(11, count($blogs));
     }
 
+	public function testDuplicateKeys() {
+        $this->populateBlogs();
+		$blogs = new \Maphper\Maphper($this->getDataSource('blog'));
+
+        $blogs = $blogs->filter([
+			\Maphper\Maphper::FIND_OR => [
+				\Maphper\Maphper::FIND_LESS => [
+	                'id' => 5
+	            ],
+				\Maphper\Maphper::FIND_GREATER => [
+	                'id' => 15
+	            ]
+			]
+        ]);
+
+        $this->assertEquals(9, count($blogs));
+    }
+
 	public function testCreateNew() {
 		$blogs = new \Maphper\Maphper($this->getDataSource('blog'));
 		$blog = $blogs[null];

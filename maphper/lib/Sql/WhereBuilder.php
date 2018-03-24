@@ -29,12 +29,31 @@ class WhereBuilder {
 
             if (is_object($value)) continue;
 			$result = $this->getResult($key, $value, $mode);
+            $result = $this->fixDuplicateArgs($args, $result);
             $sql = array_merge($sql, (array)$result['sql']);
             $args = array_merge($args, $result['args']);
         }
 
 		return ['args' => $args, 'sql' => $this->sqlArrayToString($sql, $mode)];
 	}
+
+    // Returns result with duplicate issues removed
+    private function fixDuplicateArgs($origArgs, $result) {
+        $duplicates = array_intersect_key($result['args'], $origArgs); // Holds all keys in results already in the args
+        if (count($duplicates) === 0) return $result;
+
+        foreach ($duplicates as $argKey => $argVal) {
+            $valHash = substr(md5($argVal), 0, 5);
+            $newKey = $argKey . $valHash;
+
+            // Replace occurences of duplicate key with key + hash as arg
+            $result['sql'] = str_replace(':' . $argKey, ':' . $newKey, $result['sql']);
+            unset($result['args'][$argKey]);
+            $result['args'][$newKey] = $argVal;
+        }
+
+        return $result;
+    }
 
     /*
      * Either get sql from a conditional or call createSql again because the mode needs to be changed
