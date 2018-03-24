@@ -79,7 +79,7 @@ class WhereBuilder {
     }
 
     private function convertDates($value) {
-        if ($value instanceof \DateTime) {
+        if ($value instanceof \DateTimeInterface) {
             if ($value->format('H:i:s')  == '00:00:00') $value = $value->format('Y-m-d');
             else $value = $value->format('Y-m-d H:i:s');
         }
