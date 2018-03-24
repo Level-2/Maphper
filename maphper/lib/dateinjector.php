@@ -3,6 +3,11 @@ namespace Maphper\Lib;
 //Replaces dates in an object graph with \DateTime instances
 class DateInjector {
 	private $processCache;
+	private $dateFormats = [
+		['Y-m-d H:i:s', 20],
+		['Y-m-d', 10],
+		['Y-n-d', 9]
+	];
 
 	public function replaceDates($obj, $reset = true) {
 		//prevent infinite recursion, only process each object once
@@ -16,12 +21,19 @@ class DateInjector {
     private function tryToGetDateObjFromString($obj) {
         try {
             $date = new \DateTime($obj);
-            if ($date->format('Y-m-d H:i:s') == substr($obj, 0, 20) || $date->format('Y-m-d') == substr($obj, 0, 10)) $obj = $date;
+			if ($this->dateMatchesFormats($date, $obj)) $obj = $date;
         }
         catch (\Exception $e) {	//Doesn't need to do anything as the try/catch is working out whether $obj is a date
         }
         return $obj;
     }
+
+	private function dateMatchesFormats($date, $str) {
+		foreach ($this->dateFormats as list($format, $len)) {
+			if ($date->format($format) == substr($str, 0, $len)) return true;
+		}
+		return false;
+	}
 
     private function isIterable($obj) {
         return is_array($obj) || (is_object($obj) && ($obj instanceof \Iterator));
