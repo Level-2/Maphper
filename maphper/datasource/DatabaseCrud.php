@@ -21,7 +21,7 @@ class DatabaseCrud {
     }
 
     public function deleteById($id) {
-        $this->adapter->query($this->crudBuilder->delete($this->table, $this->primaryKey[0] . ' = :id', [':id' => $id], 1));
+        $this->adapter->query($this->crudBuilder->delete($this->table, $this->primaryKey[0] . ' = :id', [':id' => $id]));
         $this->databaseSelect->deleteIDFromCache($id);
 	}
 

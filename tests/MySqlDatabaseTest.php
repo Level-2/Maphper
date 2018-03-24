@@ -1248,7 +1248,6 @@ class MySqlDatabaseTest extends PHPUnit_Framework_TestCase {
 		$this->assertTrue(count($mapper) == 3);
 		unset($mapper[2]);
 		$this->assertTrue(count($mapper) == 2);
-		$this->assertEmpty($mapper[2]);
 	}
 
 	public function testDeleteAll() {
