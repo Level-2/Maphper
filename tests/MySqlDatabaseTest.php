@@ -819,6 +819,45 @@ class MySqlDatabaseTest extends PHPUnit_Framework_TestCase {
 		$this->assertEquals('Author 2', $blog2->author->name);
 	}
 
+	public function testFetchNonexistantRelationOne() {
+
+		$this->populateBlogsAuthors();
+
+		$blogs = new \Maphper\Maphper($this->getDataSource('blog'));
+		$authors = new \Maphper\Maphper($this->getDataSource('author'));
+
+		$relation = new \Maphper\Relation\One( $authors, 'authorId', 'id');
+		$blogs->addRelation('author', $relation);
+
+		$blogs[2] = (object) ['title' => 'test', 'authorId' => null];
+
+		$blog2 = $blogs[2];
+
+		$this->assertNotEquals($blog2->author, null);
+		$this->assertEquals(null, $blog2->authorId);
+		$this->assertEquals('test', $blog2->title);
+		$this->assertNull($blog2->author->name);
+	}
+
+	public function testFetchNonexistantRelationOneNoSiblings() {
+		$this->dropTable('blog');
+
+		$blogs = new \Maphper\Maphper($this->getDataSource('blog', 'id', ['editmode' => true]));
+		$authors = new \Maphper\Maphper($this->getDataSource('author', 'id', ['editmode' => true]));
+
+		$relation = new \Maphper\Relation\One( $authors, 'authorId', 'id');
+		$blogs->addRelation('author', $relation);
+
+		$blogs[2] = (object) ['title' => 'test', 'authorId' => null];
+
+		$blog2 = $blogs[2];
+
+		$this->assertNotEquals($blog2->author, null);
+		$this->assertEquals(null, $blog2->authorId);
+		$this->assertEquals('test', $blog2->title);
+		$this->assertNull($blog2->author->name);
+	}
+
 
 	public function testFetchRelationMany() {
 		$this->populateBlogsAuthors();
