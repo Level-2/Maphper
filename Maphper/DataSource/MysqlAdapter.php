@@ -28,7 +28,7 @@ class MysqlAdapter implements DatabaseAdapter {
     private function alterColumns($table, array $primaryKey, $data) {
         foreach ($data as $key => $value) {
 			if ($this->generalEditor->isNotSavableType($value, $key, $primaryKey)) continue;
-            
+
 			$type = $this->generalEditor->getType($value);
 			$this->tryAlteringColumn($table, $key, $type);
 		}
