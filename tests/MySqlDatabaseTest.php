@@ -1123,6 +1123,25 @@ class MySqlDatabaseTest extends PHPUnit_Framework_TestCase {
 			$this->assertFalse(isset($actors[1]->movies[2]));
 	}
 
+	public function testDeleteManyMany() {
+		list($actors, $movies, $cast) = $this->setUpMoviesActors();
+
+		// Set up some relations
+		$actors[1]->movies[] = $movies[2];
+		$actors[1]->movies[] = $movies[3];
+		$actors[2]->movies[] = $movies[2];
+		$actors[2]->movies[] = $movies[1];
+
+		$this->assertNotEquals(0, count($cast));
+		$this->assertEquals(4, count($cast));
+
+		$actors[1]->movies->delete();
+
+		$this->assertEquals(2, count($cast));
+		$this->assertEquals(0, count($actors[1]->movies));
+		$this->assertEquals(2, count($actors[2]->movies));
+	}
+
 
 	private function setupMoviesActorsReal() {
 		$cast = new \Maphper\Maphper($this->getDataSource('cast', ['movieId', 'actorId'], ['editmode' => true]));

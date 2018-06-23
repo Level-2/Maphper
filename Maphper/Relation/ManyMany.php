@@ -111,4 +111,8 @@ class ManyMany implements \IteratorAggregate, \ArrayAccess, \Countable, \Maphper
 	public function offsetUnset($id) {
 		//$this->relation->mapper->filter([$relatedField => $this->object->$valueField, $this->relation->parentField => $id])->delete();
 	}
+
+	public function delete() {
+		$this->getResults()->delete();
+	}
 }
