@@ -41,7 +41,8 @@ class One implements \Maphper\Relation {
 		$recordsToLoad = [];
 		//Get a list of records by FK to eager load
 		foreach ($this->siblings as $sibling) {
-			$recordsToLoad[] = $sibling->parentObject->{$sibling->parentField};
+			if ($sibling->parentField === $this->parentField) // Ensure that it is only loading records from the same type of relation
+				$recordsToLoad[] = $sibling->parentObject->{$sibling->parentField};
 		}
 
 		$recordsToLoad = array_unique($recordsToLoad);

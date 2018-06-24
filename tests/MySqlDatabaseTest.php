@@ -1108,6 +1108,17 @@ class MySqlDatabaseTest extends PHPUnit_Framework_TestCase {
 
 	}
 
+	public function testManyManyList() {
+		list($actors, $movies, $cast) = $this->setUpMoviesActors();
+
+		$actors[1]->movies[] = (object) ['mid' => 1];
+		$actors[1]->movies[] = (object) ['mid' => 2];
+
+		$mids = array();
+        foreach ($actors[1]->movies as $movie) $mids[] = $movie->mid;
+		$this->assertEquals(2, count($mids));
+	}
+
 
 	public function testManyManyGetByIndex() {
 			list($actors, $movies, $cast) = $this->setUpMoviesActors();
