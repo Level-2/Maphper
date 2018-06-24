@@ -46,7 +46,7 @@ class Maphper implements \Countable, \ArrayAccess, \IteratorAggregate {
 				unset($this->settings['filter'][$name]);
 			}
 		}
-	}	
+	}
 
 	private function getResults() {
 		$this->wrapFilter();
@@ -92,11 +92,17 @@ class Maphper implements \Countable, \ArrayAccess, \IteratorAggregate {
 		$value = $this->processFilters($value);
 		$pk = $this->dataSource->getPrimaryKey();
 		if ($offset !== null) $value->{$pk[0]} = $offset;
-		$valueCopy = clone $value;
+		$valueCopy = $this->removeRelations(clone $value);
 		$value = $this->entity->wrap($this->relations, $value);
 		$this->dataSource->save($value);
 		$visibilityOverride->write($value);
         $this->entity->create((array_merge((array)$value, (array)$valueCopy)), $this->relations);
+	}
+
+	private function removeRelations($obj) { // Prevent saving ManyMany twice
+		foreach ($this->relations as $name => $relation)
+			if ($relation instanceOf \Maphper\Relation\ManyMany && isset($obj->$name)) unset($obj->$name);
+		return $obj;
 	}
 
 	public function offsetExists($offset) {

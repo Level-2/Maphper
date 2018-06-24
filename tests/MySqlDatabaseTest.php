@@ -1057,6 +1057,42 @@ class MySqlDatabaseTest extends PHPUnit_Framework_TestCase {
 		return [$actors, $movies, $cast];
 	}
 
+	private function setUpMoviesActorsSameKey() {
+		$actorNames = ['Actor 1', 'Actor 2', 'Actor 3'];
+		$movieNames = ['Movie 1', 'Movie 2', 'Movie 3'];
+		$this->dropTable('actor');
+		$this->dropTable('movie');
+		$this->dropTable('cast');
+
+		$this->pdo->query("CREATE TABLE `actor` ( `aid` INT NOT NULL AUTO_INCREMENT , `name` VARCHAR(100) NOT NULL , PRIMARY KEY (`aid`))");
+		$this->pdo->query("CREATE TABLE `movie` ( `mid` INT NOT NULL AUTO_INCREMENT , `title` VARCHAR(100) NOT NULL , PRIMARY KEY (`mid`))");
+		$this->pdo->query("CREATE TABLE `cast` ( `mid` INT NOT NULL , `aid` INT NOT NULL)");
+
+
+
+		$actors = new \Maphper\Maphper($this->getDataSource('actor', 'aid', ['editmode' => true]));
+		foreach ($actorNames as $actorName) {
+			$actor = new stdclass;
+			$actor->name = $actorName;
+			$actors[] = $actor;
+		}
+
+		$movies = new \Maphper\Maphper($this->getDataSource('movie', 'mid', ['editmode' => true]));
+		foreach ($movieNames as $movieName) {
+			$movie = new stdclass;
+			$movie->title = $movieName;
+			$movies[] = $movie;
+		}
+
+		$cast = new \Maphper\Maphper($this->getDataSource('cast', ['mid', 'aid'], ['editmode' => true]));
+
+		$actors->addRelation('movies', new \Maphper\Relation\ManyMany($cast, $movies, 'mid', 'mid'));
+		$movies->addRelation('actors', new \Maphper\Relation\ManyMany($cast, $actors, 'aid', 'aid'));
+
+
+		return [$actors, $movies, $cast];
+	}
+
 	public function testManyManySave() {
 		//Add some actors and movies
 
@@ -1080,6 +1116,30 @@ class MySqlDatabaseTest extends PHPUnit_Framework_TestCase {
 		$this->assertEquals(2, count($actors[1]->movies));
 
 		$this->assertNotEquals(0, count($cast));
+	}
+
+	public function testManyManySaveFromOverwrite() { // Error only occurs if intermediate table does not have pk's set up in mysql
+		//Add some actors and movies
+
+
+		list($actors, $movies, $cast) = $this->setUpMoviesActorsSameKey();
+
+		$actor = [];
+		$actor['name'] = 'Actor 4';
+		$actor['aid'] = 4;
+
+		$actor = (object) $actor;
+		$actors[] = $actor;
+
+		$actor->movies = [];
+		$actor->movies[] = (object) ['mid' => 1];
+		$actor->movies[] = (object) ['mid' => 2];
+		$this->assertEquals(0, count($cast));
+		$actors[] = $actor;
+
+		$this->assertEquals(2, count($cast));
+
+		$this->assertEquals(2, count($actors[4]->movies));
 	}
 
 
