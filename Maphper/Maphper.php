@@ -92,16 +92,16 @@ class Maphper implements \Countable, \ArrayAccess, \IteratorAggregate {
 		$value = $this->processFilters($value);
 		$pk = $this->dataSource->getPrimaryKey();
 		if ($offset !== null) $value->{$pk[0]} = $offset;
-		$valueCopy = $this->removeRelations(clone $value);
+		$valueCopy = $this->removeRelations(clone $value, $pk);
 		$value = $this->entity->wrap($this->relations, $value);
 		$this->dataSource->save($value);
 		$visibilityOverride->write($value);
         $this->entity->create((array_merge((array)$value, (array)$valueCopy)), $this->relations);
 	}
 
-	private function removeRelations($obj) { // Prevent saving ManyMany twice
+	private function removeRelations($obj, $pk) { // Prevent saving ManyMany twice except when pk isn't initially set
 		foreach ($this->relations as $name => $relation)
-			if ($relation instanceOf \Maphper\Relation\ManyMany && isset($obj->$name)) unset($obj->$name);
+			if ($relation instanceOf \Maphper\Relation\ManyMany && isset($obj->$name) && isset($obj->{$pk[0]})) unset($obj->$name);
 		return $obj;
 	}
 

@@ -1118,6 +1118,31 @@ class MySqlDatabaseTest extends PHPUnit_Framework_TestCase {
 		$this->assertNotEquals(0, count($cast));
 	}
 
+	public function testManyManySaveDeep() {
+		//Add some actors and movies
+
+
+		list($actors, $movies, $cast) = $this->setUpMoviesActors();
+
+		$this->assertTrue(count($actors) > 0);
+		$this->assertTrue(count($movies) > 0);
+
+
+		$this->assertEquals(0, count($cast));
+
+		$actor = new \stdClass;
+		$actor->name = 'Actor 4';
+
+		//Add a movie to an actor
+		$actor->movies = [];
+		$actor->movies[] = (object) ['mid' => 1];
+
+		$actors[] = $actor;
+		$this->assertEquals(1, count($cast));
+
+		$this->assertEquals(1, count($actors[4]->movies));
+	}
+
 	public function testManyManySaveFromOverwrite() { // Error only occurs if intermediate table does not have pk's set up in mysql
 		//Add some actors and movies
 

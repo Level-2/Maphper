@@ -29,8 +29,10 @@ class ManyMany implements \IteratorAggregate, \ArrayAccess, \Countable, \Maphper
 	}
 
 	public function overwrite($parentObject, &$data) {
+		list($relatedField, $valueField, $mapper) = $this->getOtherFieldNameInfo();
 		$this->results = $data;
 		$this->object = $parentObject;
+		if (!isset($parentObject->{$relatedField})) return;
 		foreach ($data as $dt) $this[] = $dt;
 	}
 
