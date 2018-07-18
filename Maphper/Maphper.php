@@ -101,7 +101,9 @@ class Maphper implements \Countable, \ArrayAccess, \IteratorAggregate {
 
 	private function removeRelations($obj, $pk) { // Prevent saving ManyMany twice except when pk isn't initially set
 		foreach ($this->relations as $name => $relation)
-			if ($relation instanceOf \Maphper\Relation\ManyMany && isset($obj->$name) && isset($obj->{$pk[0]})) unset($obj->$name);
+			if ($relation instanceOf \Maphper\Relation\ManyMany && isset($obj->$name) && !empty($obj->{$pk[0]})) unset($obj->$name);
+
+		if (empty($obj->{$pk[0]})) unset($obj->{$pk[0]});
 		return $obj;
 	}
 
