@@ -43,7 +43,7 @@ To set up a Maphper object using a Database Table as its Data Source, first crea
 $pdo = new PDO('mysql:dbname=maphpertest;host=127.0.0.1', 'username', 'password');
 ```
 
-Then create an instance of \Maphper\DataSource\DataBase passing it the PDO instance, name of the table and primary key:
+Then create an instance of \Maphper\DataSource\Database passing it the PDO instance, name of the table and primary key:
 
 ```php
 $blogSource = new \Maphper\DataSource\Database($pdo, 'blog', 'id');
@@ -58,6 +58,7 @@ $blogs = new \Maphper\Maphper($blogSource);
 You can loop through all the blogs using:
 
 ```php
+// Equivalent to SELECT * FROM blogs
 foreach ($blogs as $blog) {
   echo $blog->title . '<br />';
 }
@@ -68,6 +69,7 @@ Any fields from the database table (or xml file, web service, etc) will be avail
 Alternatively you can find a specific blog using the ID
 
 ```php
+//Equivalent to SELECT * FROM blogs WHERE id = 142
 echo $blogs[142]->title;
 ```
 
@@ -82,6 +84,7 @@ Maphper supports filtering the data:
 
 ```php
 //find blogs that were posted on a specific date
+//Equivalent to SELECT * FROM blogs WHERE date = '2015-04-09'
 $filteredBlogs = $blogs->filter(['date' => '2014-04-09']);
 
 //this will only retrieve blogs that were matched by the filter
@@ -96,6 +99,7 @@ Filters can be extended and chained together:
 
 ```php
 //find blogs that were posted with the title "My Blog" by the author with the id of 7
+//Equivalent to SELECT * FROM blogs WHERE title = 'My Blog' AND authorId = 7 
 $filteredBlogs = $blogs->filter(['title' => 'My Blog'])->filter(['authorId' => 7]);
 
 //this will only retrieve blogs that were matched by both filters
@@ -116,6 +120,7 @@ foreach ($blogs->filter(['date' => '2014-04-09']) as $blog) {
 To find the latest 5 blogs you could use:
 
 ```php
+//Equivalent to SELECT * FROM blogs LIMIT 5 ORDER BY date DESC
 foreach ($blogs->limit(5)->sort('date desc') as $blog) {
   echo $blog->title;
 }
@@ -125,6 +130,7 @@ foreach ($blogs->limit(5)->sort('date desc') as $blog) {
 Like any array, you can count the total number of blogs using:
 
 ```php
+//Equivalent to SELECT count(*) FROM lblogs
 echo 'Total number of blogs is ' . count($blogs);
 ```
 
@@ -132,6 +138,7 @@ This will count the total number of blogs in the table. You can also count filte
 
 ```php
 //Count the number of blogs in category 3
+//Equivalent to SELECT count(*) FROM blogs WHERE categoryId =  3
 echo count($blogs->filter(['categoryId' => 3]);
 ```
 
