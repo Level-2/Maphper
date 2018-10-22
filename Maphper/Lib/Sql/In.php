@@ -10,6 +10,7 @@ class In implements WhereConditional {
         $args = [];
         $inSql = [];
         $count = count($value);
+		$value = array_values($value); // fix numeric index being different than $i
         for ($i = 0; $i < $count; $i++) {
             $args[$key . $i] = $value[$i];
             $inSql[] = ':' . $key . $i;
