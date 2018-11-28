@@ -99,8 +99,9 @@ class ManyMany implements \IteratorAggregate, \ArrayAccess, \Countable, \Maphper
 
     private function doUpdateInterMapper($record, $relatedField, $valueField) {
         return !(isset($record->{$this->parentField}) && isset($record->{$this->intermediateName}) &&
-                $record->{$this->parentField} == $record->{$this->intermediateName}->{$this->localField} &&
-                $record->$valueField == $this->object->{$relatedField});
+            isset($record->$valueField) && isset($this->object->{$relatedField}) &&
+            $record->{$this->parentField} == $record->{$this->intermediateName}->{$this->localField} &&
+            $record->$valueField == $this->object->{$relatedField});
     }
 
     private function offsetSetAutotraverse($value, $relatedField, $valueField) {

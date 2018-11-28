@@ -167,7 +167,7 @@ class MySqlDatabaseTest extends PHPUnit_Framework_TestCase {
 		$authors->addRelation('blogs', new \Maphper\Relation\Many($blogs, 'id', 'authorId'));
 
 		$author = new stdClass;
-		$authors[] = $author;
+		//$authors[] = $author;
 		$author->name = 'Blog Author';
 
 		$author->blogs = [];
@@ -194,6 +194,27 @@ class MySqlDatabaseTest extends PHPUnit_Framework_TestCase {
 		$authors->addRelation('blogs', new \Maphper\Relation\Many($blogs, 'id', 'authorId'));
 
 		$this->assertEquals(2, count($authors[1]->blogs));
+
+		// Add another author
+        unset($authors);
+        $authors = new \Maphper\Maphper($this->getDataSource('author', 'id', ['editmode' => true]));
+        $authors->addRelation('blogs', new \Maphper\Relation\Many($blogs, 'id', 'authorId'));
+
+        $author2 = new stdClass;
+        $author2->name = 'Blog2 Author';
+
+        $authors[] = $author2;
+
+        $this->assertEquals(2, count($blogs));
+        $this->assertEquals(2, count($authors));
+
+        unset($authors);
+        $authors = new \Maphper\Maphper($this->getDataSource('author', 'id', ['editmode' => true]));
+        $authors->addRelation('blogs', new \Maphper\Relation\Many($blogs, 'id', 'authorId'));
+
+        $this->assertEquals(2, count($authors[1]->blogs));
+        $this->assertEquals(0, count($authors[2]->blogs));
+
 	}
 
 	public function testObjectGraphSaveDeep() {
@@ -1429,7 +1450,7 @@ class MySqlDatabaseTest extends PHPUnit_Framework_TestCase {
 		$blog->date = $date;
 
 		$blog2 = new stdclass;
-		$blog2->id = 12;
+		$blog2->id = '12';
 		$blog2->title = 'test2';
 		$blog2->date = $date;
 

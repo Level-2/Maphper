@@ -24,7 +24,7 @@ class Many implements \Maphper\Relation {
 	public function overwrite($key, &$mapper) {
 		if (!isset($key->{$this->parentField})) return false;
 		foreach ($mapper as $k => $val) {
-			if (!empty($val->{$this->localField}) && $val->{$this->localField} == $key->{$this->parentField}) continue;
+			if (!empty($val->{$this->localField}) && $val->{$this->localField} != $key->{$this->parentField}) continue;
 			$val->{$this->localField} = $key->{$this->parentField};
 			$this->mapper[] = $val;
 		}
