@@ -10,13 +10,19 @@ class In implements WhereConditional {
         $args = [];
         $inSql = [];
         $count = count($value);
-		$value = array_values($value); // fix numeric index being different than $i
+        $value = array_values($value); // fix numeric index being different than $i
         for ($i = 0; $i < $count; $i++) {
             $args[$key . $i] = $value[$i];
             $inSql[] = ':' . $key . $i;
         }
-        if (count($inSql) == 0) return [];
-        else $sql = [$key . ' IN ( ' .  implode(', ', $inSql) . ')'];
+
+        $notText = '';
+        if (\Maphper\Maphper::FIND_NOT & $mode) {
+            $notText = ' NOT';
+        }
+
+        if (count($inSql) == 0) return ['args' => [], 'sql' => ''];
+        else $sql = [$key . $notText . ' IN ( ' .  implode(', ', $inSql) . ')'];
 
         return ['args' => $args, 'sql' => $sql];
     }

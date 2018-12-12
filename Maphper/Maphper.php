@@ -83,20 +83,21 @@ class Maphper implements \Countable, \ArrayAccess, \IteratorAggregate {
 	}
 
 	public function offsetSet($offset, $valueObj) {
-		if ($valueObj instanceof \Maphper\Relation) throw new \Exception();
+        if ($valueObj instanceof \Maphper\Relation) throw new \Exception();
 
-		//Extract private properties from the object
-		$visibilityOverride = new \Maphper\Lib\VisibilityOverride($valueObj);
-		$value = $visibilityOverride->getProperties($valueObj);
+        //Extract private properties from the object
+        $visibilityOverride = new \Maphper\Lib\VisibilityOverride($valueObj);
+        $value = $visibilityOverride->getProperties($valueObj);
 
-		$value = $this->processFilters($value);
-		$pk = $this->dataSource->getPrimaryKey();
-		if ($offset !== null) $value->{$pk[0]} = $offset;
-		$valueCopy = $this->removeRelations(clone $value, $pk);
-		$value = $this->entity->wrap($this->relations, $value);
-		$this->dataSource->save($value);
-		$visibilityOverride->write($value);
-        $this->entity->create((array_merge((array)$value, (array)$valueCopy)), $this->relations);
+        $value = $this->processFilters($value);
+        $pk = $this->dataSource->getPrimaryKey();
+        if ($offset !== null) $value->{$pk[0]} = $offset;
+        $valueCopy = $this->removeRelations(clone $value, $pk);
+        $value = $this->entity->wrap($this->relations, $value);
+        $this->dataSource->save($value);
+        $visibilityOverride->write($value);
+        $value = $this->entity->create((array_merge((array)$value, (array)$valueCopy)), $this->relations);
+        $visibilityOverride->write($value);
 	}
 
 	private function removeRelations($obj, $pk) { // Prevent saving ManyMany twice except when pk isn't initially set

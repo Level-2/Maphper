@@ -8,7 +8,7 @@ class SqliteDatabaseTest extends MySqlDatabaseTest {
 
 	
 	public function __construct() {
-		parent::__construct();
+		parent::__construct(false);
 		
 		//prevent any Date errors
 		date_default_timezone_set('Europe/London');

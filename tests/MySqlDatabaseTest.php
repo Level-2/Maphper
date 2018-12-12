@@ -7,15 +7,19 @@ class MySqlDatabaseTest extends PHPUnit_Framework_TestCase {
 	protected $maphper;
 	protected $pdo;
 
-	public function __construct() {
+	public function __construct($setUpMySql = true) {
 		parent::__construct();
-		$this->assertTrue(class_exists('\\Tests\\MySqlConfig'), 'Please copy tests/mysqlconfig.example.php to tests/mysqlconfig.php and provide database connection information');
-
-		$config = new Tests\MySqlConfig();
-
-		$this->pdo = new \PDO('mysql:dbname=' . $config->schema . ';host=' . $config->server . ';port=' . $config->port, $config->username, $config->password);
-		$this->pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_SILENT);
+		if ($setUpMySql) $this->setUpMySql();
 	}
+
+	private function setUpMySql() {
+        $this->assertTrue(class_exists('\\Tests\\MySqlConfig'), 'Please copy tests/mysqlconfig.example.php to tests/mysqlconfig.php and provide database connection information');
+
+        $config = new Tests\MySqlConfig();
+
+        $this->pdo = new \PDO('mysql:dbname=' . $config->schema . ';host=' . $config->server . ';port=' . $config->port, $config->username, $config->password);
+        $this->pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_SILENT);
+    }
 
 	protected function getDataSource($name, $primaryKey = 'id', array $options = []) {
 		return new \Maphper\DataSource\Database($this->pdo, $name, $primaryKey, $options);
@@ -457,6 +461,19 @@ class MySqlDatabaseTest extends PHPUnit_Framework_TestCase {
         ]);
 
         $this->assertEquals(3, count($blogs));
+    }
+
+    public function testFindNotIn() {
+        $this->populateBlogs();
+        $blogs = new \Maphper\Maphper($this->getDataSource('blog'));
+
+        $blogs = $blogs->filter([
+            \Maphper\Maphper::FIND_NOT => [
+                'id' => [1, 5, 9]
+            ]
+        ]);
+
+        $this->assertEquals(17, count($blogs));
     }
 
     public function testFindStarts() {
