@@ -422,6 +422,67 @@ class MockDatasourceTest extends PHPUnit_Framework_TestCase {
 		$this->assertEquals($result->title, $blog->title);
 	}
 
+    public function testMultiPkWriteSameId1() {
+        $storage = new ArrayObject();
+        $pk = ['id1', 'id2'];
+        $mapper = $this->getMaphper($storage, $pk);
+
+        $blog = new Blog;
+        $blog->title = 'ABC';
+
+        $blog2 = new Blog;
+        $blog2->title = 'Test2';
+
+        $mapper[13][15] = $blog;
+
+        $mapper[13][10] = $blog2;
+
+        $values = ['id1' => 13, 'id2' => 15];
+
+        $result = array_reduce(iterator_to_array($storage->getIterator()), function ($carry, $current) use ($values, $pk) {
+            if ($carry !== null) return $carry;
+            $matches = true;
+            foreach ($pk as $key) {
+                $matches = ($current->$key === $values[$key]) && $matches;
+            }
+            if ($matches) return $current;
+            else return null;
+        });
+
+        $this->assertEquals($result->title, $blog->title);
+    }
+
+    public function testMultiPkWrite2SameId1() {
+        $storage = new ArrayObject();
+        $pk = ['id1', 'id2', 'id3', 'id4'];
+        $mapper = $this->getMaphper($storage, $pk);
+
+        $blog = new Blog;
+        $blog->title = 'ABC123';
+
+        $blog2 = new Blog;
+        $blog2->title = 'Test2';
+
+
+        $mapper[13][15][3][4] = $blog;
+
+        $mapper[13][10][3][4] = $blog2;
+
+        $values = ['id1' => 13, 'id2' => 15, 'id3' => 3, 'id4' => 4];
+
+        $result = array_reduce(iterator_to_array($storage->getIterator()), function ($carry, $current) use ($values, $pk) {
+            if ($carry !== null) return $carry;
+            $matches = true;
+            foreach ($pk as $key) {
+                $matches = ($current->$key === $values[$key]) && $matches;
+            }
+            if ($matches) return $current;
+            else return null;
+        });
+
+        $this->assertEquals($result->title, $blog->title);
+    }
+
 	public function testMultiPkOffsetExists() {
         $storage = new ArrayObject();
 		$pk = ['id1', 'id2', 'id3', 'id4'];

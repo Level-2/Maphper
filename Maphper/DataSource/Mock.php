@@ -39,10 +39,20 @@ class Mock implements \Maphper\DataSource {
     }
 
   	public function deleteByField(array $fields, array $options) {
-        foreach ($this->findByField($fields, $options) as $val) unset($this->data[$val->{$this->id[0]}]);
+        foreach ($this->findByField($fields, $options) as $val) {
+            if (count($this->id) > 1) $id = $this->getMultiPkSaveId($val);
+            else $id = $val->{$this->id[0]};
+
+            unset($this->data[$id]);
+        }
     }
 
     public function save($data) {
+        if (count($this->id) > 1) return $this->saveMultiPk($data);
+        else return $this->saveSinglePk($data);
+    }
+
+    private function saveSinglePk($data) {
         if (isset($data->{$this->id[0]})) {
             $id = $data->{$this->id[0]};
         }
@@ -52,6 +62,20 @@ class Mock implements \Maphper\DataSource {
         }
 
         $this->data[$id] = (object)array_merge($this->findById($id), (array)$data);
+    }
+
+    private function saveMultiPk($data) {
+        $saveId = $this->getMultiPkSaveId($data);
+
+        $this->data[$saveId] = (object)array_merge($this->findById($saveId), (array)$data);
+    }
+
+    private function getMultiPkSaveId($data) {
+        $keyVals = [];
+        foreach ($this->id as $keyName) {
+            $keyVals[] = $data->$keyName;
+        }
+        return implode(',', $keyVals);
     }
 
     public function getErrors() {
