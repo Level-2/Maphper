@@ -10,7 +10,7 @@ class DatabaseOptions {
 	}
 
 	public function getAdapter() {
-		if (!($this->db instanceof \PDO)) return $this->db;
+		if ($this->db instanceof \Maphper\DataSource) return $this->db;
 
 		$adapter = '\\Maphper\\DataSource\\' . ucfirst($this->db->getAttribute(\PDO::ATTR_DRIVER_NAME)) . 'Adapter';
 
