@@ -1,5 +1,4 @@
 <?php
-// C
 namespace Maphper\Lib;
 class Entity {
 	//Creates an object of type $className and populates it with data

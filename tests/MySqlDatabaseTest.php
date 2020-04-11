@@ -13,12 +13,16 @@ class MySqlDatabaseTest extends PHPUnit_Framework_TestCase {
 	}
 
 	private function setUpMySql() {
-        $this->assertTrue(class_exists('\\Tests\\MySqlConfig'), 'Please copy tests/mysqlconfig.example.php to tests/mysqlconfig.php and provide database connection information');
+        $this->assertTrue(class_exists('\\tests\\MySqlConfig'), 'Please copy tests/mysqlconfig.example.php to tests/MySqlConfig.php and provide database connection information');
+
 
         $config = new Tests\MySqlConfig();
 
-        $this->pdo = new \PDO('mysql:dbname=' . $config->schema . ';host=' . $config->server . ';port=' . $config->port, $config->username, $config->password);
+        $this->pdo = new \PDO('mysql:host=' . $config->server . ';port=' . $config->port, $config->username, $config->password);
         $this->pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_SILENT);
+
+        $this->pdo->query('CREATE SCHEMA IF NOT EXISTS ' . $config->schema);
+        $this->pdo->query('USE ' . $config->schema);
     }
 
 	protected function getDataSource($name, $primaryKey = 'id', array $options = []) {

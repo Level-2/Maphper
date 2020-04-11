@@ -2,4 +2,4 @@
 /.project
 test.db
 test.db-journal
-tests/mysqlconfig.php
+tests/MySqlConfig.php
