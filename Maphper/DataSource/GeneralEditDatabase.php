@@ -33,7 +33,7 @@ class GeneralEditDatabase {
 
     private function doNumberTypes($val) {
         if (is_int($val)) return $this->dataTypes['int'];
-		else if (is_double($val)) return $this->dataTypes['decimal'] . '(9,' . strlen($val) - strrpos($val, '.') - 1 . ')';
+		else if (is_double($val)) return $this->dataTypes['decimal'] . '(9,' . (strlen($val) - strrpos($val, '.') - 1) . ')';
         else return false;
     }
 
