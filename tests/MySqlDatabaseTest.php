@@ -770,7 +770,7 @@ class MySqlDatabaseTest extends PHPUnit_Framework_TestCase {
 
 		$blog = new Blog;
 		$blog->title = 'ABC123';
-		$blog->date = new \DateTime;
+		$blog->date = new \DateTimeImmutable;
 		$blog->id = 2;
 		$mapper[] = $blog;
 
@@ -784,7 +784,7 @@ class MySqlDatabaseTest extends PHPUnit_Framework_TestCase {
 
 		$blog = new Blog;
 		$blog->title = 'ABC123';
-		$blog->date = new \DateTime;
+		$blog->date = new \DateTimeImmutable;
 		$blog->id = 7;
 		$mapper[] = $blog;
 
@@ -793,7 +793,7 @@ class MySqlDatabaseTest extends PHPUnit_Framework_TestCase {
 
 		$blog7 = $mapper[7];
 
-		$this->assertInstanceOf('\DateTime', $blog7->date);
+		$this->assertInstanceOf('\DateTimeImmutable', $blog7->date);
 		$this->assertEquals($blog->date->format('Y-m-d'), $blog7->date->format('Y-m-d'));
 
 	}
@@ -804,7 +804,7 @@ class MySqlDatabaseTest extends PHPUnit_Framework_TestCase {
 		$this->populateBlogs();
 		$blogs = new \Maphper\Maphper($this->getDataSource('blog'));
 
-		$b = $blogs->filter(['date' => new \DateTime('2015-01-02')]);
+		$b = $blogs->filter(['date' => new \DateTimeImmutable('2015-01-02')]);
 
 		$this->assertEquals(count($b), 4);
 
