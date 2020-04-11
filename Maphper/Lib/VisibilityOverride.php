@@ -24,7 +24,7 @@ class VisibilityOverride {
 	}
 
     public function isReturnableDataType($v) {
-        return is_scalar($v) || is_null($v) || (is_object($v) && $v instanceof \DateTime);
+        return is_scalar($v) || is_null($v) || (is_object($v) && $v instanceof \DateTimeInterface);
     }
 
 	public function getProperties() {

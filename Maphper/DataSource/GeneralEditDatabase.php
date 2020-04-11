@@ -25,7 +25,7 @@ class GeneralEditDatabase {
 	}
 
     public function getType($val) {
-		if ($val instanceof \DateTime) return $this->dataTypes['datetime'];
+		if ($val instanceof \DateTimeInterface) return $this->dataTypes['datetime'];
 		else if ($result = $this->doNumberTypes($val)) return $result;
 		else if ($result = $this->doStringTypes($val)) return $result;
 		else return $this->dataTypes['other'];
@@ -45,7 +45,7 @@ class GeneralEditDatabase {
     }
 
     public function isNotSavableType($value, $key, $primaryKey) {
-        return is_array($value) || (is_object($value) && !($value instanceof \DateTime)) ||
+        return is_array($value) || (is_object($value) && !($value instanceof \DateTimeInterface)) ||
                 in_array($key, $primaryKey);
     }
 

@@ -20,7 +20,7 @@ class DateInjector {
 
     private function tryToGetDateObjFromString($obj) {
         try {
-            $date = new \DateTime($obj);
+            $date = new \DateTimeImmutable($obj);
 			if ($this->dateMatchesFormats($date, $obj)) $obj = $date;
         }
         catch (\Exception $e) {	//Doesn't need to do anything as the try/catch is working out whether $obj is a date

@@ -19,7 +19,7 @@ class CrudBuilder {
 		foreach ($data as $field => $value) {
 			//For dates with times set, search on time, if the time is not set, search on date only.
 			//E.g. searching for all records posted on '2015-11-14' should return all records that day, not just the ones posted at 00:00:00 on that day
-			if ($value instanceof \DateTime) {
+			if ($value instanceof \DateTimeInterface) {
 				if ($value->format('H:i:s')  == '00:00:00') $value = $value->format('Y-m-d');
 				else $value = $value->format('Y-m-d H:i:s');
 			}

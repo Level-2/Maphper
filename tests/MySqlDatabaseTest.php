@@ -1464,7 +1464,10 @@ class MySqlDatabaseTest extends PHPUnit_Framework_TestCase {
 		$this->dropTable('blog');
 		$mapper = new \Maphper\Maphper($this->getDataSource('blog', 'id', ['editmode' => true]));
 		//$this->assertTrue(count($mapper) == 0);
-		$date = new DateTime();
+		$date = new DateTimeImmutable();
+		// Strip microseconds to make test pass as they are stripped in the database
+		$date = $date->setTime($date->format('H'), $date->format('i'), $date->format('s'), 0);
+
 		$blog = new stdclass;
 		$blog->id = 12;
 		$blog->title = 'test1';
