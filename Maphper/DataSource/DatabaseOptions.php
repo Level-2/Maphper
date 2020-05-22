@@ -23,6 +23,10 @@ class DatabaseOptions {
 		return $this->options['editmode'] === true ? Database::EDIT_STRUCTURE | Database::EDIT_INDEX | Database::EDIT_OPTIMISE : $this->options['editmode'];
 	}
 
+	public function getCacheMode() {
+		return $this->options['cachemode'] ?? true;
+	}
+
 	public function read($option) {
 		return $this->options[$option] ?? false;
 	}
