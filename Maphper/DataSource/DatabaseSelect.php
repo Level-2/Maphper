@@ -11,17 +11,18 @@ class DatabaseSelect {
     private $defaultSort;
     private $table;
 
-    public function __construct(DatabaseAdapter $adapter, DatabaseModify $databaseModify, $table, $defaultSort) {
+    public function __construct(DatabaseAdapter $adapter, DatabaseModify $databaseModify, $table, $defaultSort, $cacheMode) {
         $this->adapter = $adapter;
         $this->databaseModify = $databaseModify;
         $this->selectBuilder = new \Maphper\Lib\SelectBuilder();
         $this->whereBuilder = new \Maphper\Lib\Sql\WhereBuilder();
         $this->defaultSort = $defaultSort;
+        $this->cacheMode = $cacheMode;
         $this->table = $table;
     }
 
     public function findById($id, $pk) {
-		if (!isset($this->idCache[$id])) {
+		if (($this->cacheMode && !isset($this->idCache[$id])) || !$this->cacheMode) {
 			try {
 				$result = $this->selectQuery($this->selectBuilder->select($this->table, $pk . ' = :id', [':id' => $id], ['limit' => 1]));
 			}
@@ -29,30 +30,39 @@ class DatabaseSelect {
                 // Don't issue an error if it cannot be found since we return null
 			}
 
-			if (isset($result[0])) 	$this->idCache[$id] = $result[0];
+			if (isset($result[0])) $result = $result[0];
 			else return null;
 		}
-		return $this->idCache[$id];
+
+    if (!$this->cacheMode) return $result;
+		else return $this->idCache[$id] = $result;
 	}
 
     public function findByField(array $fields, $options = []) {
 		$cacheId = md5(serialize(func_get_args()));
-		if (!isset($this->resultCache[$cacheId])) {
+
+    if (($this->cacheMode && !isset($this->resultCache[$cacheId])) || !$this->cacheMode) {
 			$query = $this->whereBuilder->createSql($fields);
 
 			if (!isset($options['order'])) $options['order'] = $this->defaultSort;
 
 			try {
-				$this->resultCache[$cacheId] = $this->selectQuery($this->selectBuilder->select($this->table, $query['sql'], $query['args'], $options));
+				$result = $this->selectQuery($this->selectBuilder->select($this->table, $query['sql'], $query['args'], $options));
 				$this->databaseModify->addIndex(array_keys($query['args']));
 				$this->databaseModify->addIndex(explode(',', $options['order']));
 			}
 			catch (\Exception $e) {
 				$this->errors[] = $e;
-				$this->resultCache[$cacheId] = [];
+				$result = [];
 			}
 		}
-		return $this->resultCache[$cacheId];
+
+    if ($this->cacheMode) {
+      if (isset($result)) $this->resultCache[$cacheId] = $result;
+      if (isset($this->resultCache[$cacheId])) return $this->resultCache[$cacheId];
+    }
+
+    return $result;
 	}
 
     public function findAggregate($function, $field, $group = null, array $criteria = [], array $options = []) {
@@ -87,19 +97,21 @@ class DatabaseSelect {
     }
 
     public function clearResultCache() {
-        $this->resultCache = [];
+        if ($this->cacheMode) $this->resultCache = [];
     }
 
     public function clearIDCache() {
-        $this->idCache = [];
+        if ($this->cacheMode) $this->idCache = [];
     }
 
     public function updateCache($data, $pkValue) {
-		if (isset($this->cache[$pkValue])) $this->cache[$pkValue] = (object) array_merge((array)$this->cache[$pkValue], (array)$data);
-		else $this->cache[$pkValue] = $data;
+        if ($this->cacheMode) {
+  		    if (isset($this->cache[$pkValue])) $this->cache[$pkValue] = (object) array_merge((array)$this->cache[$pkValue], (array)$data);
+  		    else $this->cache[$pkValue] = $data;
+        }
     }
 
     public function deleteIDFromCache($id) {
-        unset($this->idCache[$id]);
+        if ($this->cacheMode) unset($this->idCache[$id]);
     }
 }
