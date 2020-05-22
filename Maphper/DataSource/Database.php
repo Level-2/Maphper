@@ -22,7 +22,7 @@ class Database implements \Maphper\DataSource {
 
         $databaseModify = new DatabaseModify($adapter, $options->getEditMode(), $table);
 
-        $this->databaseSelect = new DatabaseSelect($adapter, $databaseModify, $table, $defaultSort);
+        $this->databaseSelect = new DatabaseSelect($adapter, $databaseModify, $table, $defaultSort, $options->getCacheMode());
         $this->databaseCrud = new DatabaseCrud($adapter, $databaseModify, $this->databaseSelect, $table, $this->primaryKey);
 
 		$databaseModify->optimizeColumns();
