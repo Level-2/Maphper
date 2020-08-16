@@ -32,10 +32,12 @@ class DatabaseSelect {
 
 			if (isset($result[0])) $result = $result[0];
 			else return null;
-		}
 
-    if (!$this->cacheMode) return $result;
-		else return $this->idCache[$id] = $result;
+            if (!$this->cacheMode) return $result;
+            else return $this->idCache[$id] = $result;
+		}
+		// cacheMode is true and cache is set
+        return $this->idCache[$id];
 	}
 
     public function findByField(array $fields, $options = []) {
