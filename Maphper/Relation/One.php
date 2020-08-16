@@ -59,7 +59,8 @@ class One implements \Maphper\Relation {
 		}
 
 		foreach ($this->siblings as $sibling) {
-            if (isset($cache[$sibling->parentObject->{$this->parentField}])) $sibling->data = $cache[$sibling->parentObject->{$this->parentField}];
+            if ($sibling->parentField === $this->parentField &&
+                isset($cache[$sibling->parentObject->{$this->parentField}]))$sibling->data = $cache[$sibling->parentObject->{$this->parentField}];
 		}
 		/*
 		foreach ($this->siblings as $sibling) {

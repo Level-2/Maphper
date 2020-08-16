@@ -1527,6 +1527,39 @@ class MySqlDatabaseTest extends PHPUnit_Framework_TestCase {
 		$this->assertFalse(isset($mapper[3]->id));
 	}
 
+	public function testOneRelationsDuringIteration() {
+        $this->dropTable('site');
+        $this->dropTable('blog');
+        $this->dropTable('author');
+        $this->dropTable('content');
+
+        $sites = new \Maphper\Maphper($this->getDataSource('site', 'id', ['editmode' => true]));
+        $blogs = new \Maphper\Maphper($this->getDataSource('blog', 'id', ['editmode' => true]));
+        $authors = new \Maphper\Maphper($this->getDataSource('author', 'id', ['editmode' => true]));
+        $content = new \Maphper\Maphper($this->getDataSource('content', 'id', ['editmode' => true]));
+
+        $blogs->addRelation('author', new \Maphper\Relation\One($authors, 'authorId', 'id'));
+        $blogs->addRelation('content', new \Maphper\Relation\One($content, 'cId', 'id'));
+        $sites->addRelation('blogs', new \Maphper\Relation\Many($blogs, 'id', 'sId'));
+
+        $sites[1] = (object)[];
+        $blogs[1] = (object)[
+            'sId' => 1,
+            'authorId' => 1,
+            'cId' => 1,
+        ];
+        $authors[1] = (object)[
+            'name' => 'Tester',
+        ];
+        $content[1] = (object)[
+            'text' => 'Filler',
+        ];
+
+        $iter = $sites[1]->blogs->getIterator();
+        $currentBlog = $iter->current();
+        $this->assertEquals('Tester', $currentBlog->author->name);
+        $this->assertEquals('Filler', $currentBlog->content->text);
+    }
 
 	public function testInsertNoEditModeNoColumn() {
 
